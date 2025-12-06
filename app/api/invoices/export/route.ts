@@ -63,42 +63,24 @@ export async function GET(req: NextRequest) {
 
     if (search) {
       where.OR = [
-        {
-          customerName: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          customerPhone: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          invoiceCode: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
+        { customerName: { contains: search, mode: 'insensitive' } },
+        { customerPhone: { contains: search, mode: 'insensitive' } },
+        { invoiceCode: { contains: search, mode: 'insensitive' } },
       ];
     }
 
     const invoices = await prisma.invoice.findMany({
       where,
-      orderBy: {
-        invoiceDate: 'desc',
-      },
-      include: {
-        items: true,
-      },
-      take: 1000, // export a reasonable upper bound in v1
+      orderBy: { invoiceDate: 'desc' },
+      include: { items: true },
+      take: 1000,
     });
 
     const header = [
       'Invoice Code',
       'Invoice Number',
       'Date',
+      'Time',
       'Customer Name',
       'Customer Phone',
       'Main Item',
@@ -116,12 +98,27 @@ export async function GET(req: NextRequest) {
       );
       const primaryItem = membershipItem ?? inv.items[0];
 
-      const dateStr = inv.invoiceDate.toISOString().slice(0, 10); // YYYY-MM-DD
+      // 1. Force Indian Timezone
+      // 2. Prepend a space (' ') to Date so Excel treats it as Text, not a narrowed Date
+      const dateStr = ' ' + inv.invoiceDate.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'Asia/Kolkata',
+      });
+      
+      const timeStr = inv.invoiceDate.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Kolkata',
+      });
 
       rows.push([
         inv.invoiceCode,
         String(inv.invoiceNumber),
         dateStr,
+        timeStr,
         inv.customerName,
         inv.customerPhone,
         primaryItem?.description ?? '',
@@ -132,11 +129,12 @@ export async function GET(req: NextRequest) {
       ]);
     }
 
-    const csv = rows
+    const csvContent = rows
       .map((cols) => cols.map((c) => escapeCsv(c)).join(','))
       .join('\r\n');
 
-    return new Response(csv, {
+    // Add BOM for Excel UTF-8 compatibility
+    return new Response('\uFEFF' + csvContent, {
       status: 200,
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
