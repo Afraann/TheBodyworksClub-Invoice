@@ -2,12 +2,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { invoiceCode: string } },
-) {
+type RouteContext = {
+  params: Promise<{
+    invoiceCode: string;
+  }>;
+};
+
+export async function GET(_req: NextRequest, context: RouteContext) {
   try {
-    const { invoiceCode } = params;
+    // ⬇️ unwrap the params Promise (Next 16 expects this)
+    const { invoiceCode } = await context.params;
 
     if (!invoiceCode) {
       return NextResponse.json(
