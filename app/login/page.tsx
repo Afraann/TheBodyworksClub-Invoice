@@ -1,7 +1,7 @@
 // app/login/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Lock, ArrowRight } from 'lucide-react';
