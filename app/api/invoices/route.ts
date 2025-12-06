@@ -5,11 +5,14 @@ import {
   calculateInvoiceTotals,
   type LineItemInput,
 } from '@/lib/calculations';
-import { InvoiceItemType } from '@prisma/client';
+import { InvoiceItemType, Prisma } from '@prisma/client';
 
 const CUSTOM_PLAN_CODE = 'CUSTOM';
 const PT_PLAN_CODE = 'PT_20_SESSIONS';
 
+/**
+ * Common 400 response helper
+ */
 function badRequest(message: string, details?: Record<string, string>) {
   return NextResponse.json(
     {
@@ -24,6 +27,134 @@ function badRequest(message: string, details?: Record<string, string>) {
   );
 }
 
+/**
+ * STEP 2: LIST INVOICES (for history + UI table)
+ *
+ * Query params:
+ *  - search: string (matches name, phone, invoiceCode)
+ *  - range: 'today' | 'week' | 'month' | 'all'  (default: 'month')
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+
+    const search = (searchParams.get('search') ?? '').trim();
+    const range = (searchParams.get('range') ?? 'month')
+      .toLowerCase()
+      .trim();
+
+    const now = new Date();
+    let from: Date | undefined;
+
+    if (range === 'today') {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      from = start;
+    } else if (range === 'week') {
+      const start = new Date();
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      from = start;
+    } else if (range === 'month') {
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      from = start;
+    } else if (range === 'all') {
+      from = undefined;
+    } else {
+      // Fallback: month
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      from = start;
+    }
+
+    const where: Prisma.InvoiceWhereInput = {};
+
+    if (from) {
+      where.invoiceDate = {
+        gte: from,
+        lte: now,
+      };
+    }
+
+    if (search) {
+      where.OR = [
+        {
+          customerName: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          customerPhone: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          invoiceCode: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
+    const invoices = await prisma.invoice.findMany({
+      where,
+      orderBy: {
+        invoiceDate: 'desc',
+      },
+      include: {
+        items: true,
+      },
+      take: 200, // safety: avoid massive result sets in v1
+    });
+
+    const mapped = invoices.map((inv) => {
+      const membershipItem = inv.items.find(
+        (i) => i.itemType === InvoiceItemType.MEMBERSHIP,
+      );
+      const primaryItem = membershipItem ?? inv.items[0];
+
+      return {
+        id: inv.id,
+        invoiceCode: inv.invoiceCode,
+        invoiceNumber: inv.invoiceNumber,
+        invoiceDate: inv.invoiceDate,
+        customerName: inv.customerName,
+        customerPhone: inv.customerPhone,
+        grandTotal: Number(inv.grandTotal),
+        mainItemDescription: primaryItem?.description ?? '',
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        invoices: mapped,
+      },
+    });
+  } catch (err: any) {
+    console.error('GET /api/invoices error', err);
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: err?.message || 'Something went wrong',
+        },
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * Existing STEP 5: CREATE INVOICE (unchanged logic)
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
