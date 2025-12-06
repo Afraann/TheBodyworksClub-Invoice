@@ -87,7 +87,6 @@ export default async function InvoicePage({ params }: PageProps) {
                 <span className="text-xs font-medium tracking-wide uppercase">Invoice Preview</span>
              </div>
              {/* Styling the PrintButton wrapper to match theme */}
-             <div className="text-neutral-900">
                <PrintButton /> 
              </div>
           </div>
