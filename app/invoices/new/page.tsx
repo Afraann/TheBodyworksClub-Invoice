@@ -3,6 +3,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
 import { calculateInvoiceTotals, type LineItemInput } from '@/lib/calculations';
 import { 
   User, 
@@ -13,8 +15,12 @@ import {
   Check, 
   Plus, 
   Sparkles,
-  Timer
+  Timer,
+  ChevronLeft
 } from 'lucide-react';
+
+// Import local background image (adjust path if needed)
+import bgImg from '../../bg.jpg';
 
 const CUSTOM_PLAN_CODE = 'CUSTOM';
 const PT_PLAN_CODE = 'PT_20_SESSIONS';
@@ -29,7 +35,7 @@ type Plan = {
   gstRate: number;
 };
 
-// --- MOVED OUTSIDE: Helper Component ---
+// --- Helper Component ---
 const InputField = ({ 
   icon: Icon, 
   label, 
@@ -244,25 +250,47 @@ export default function NewInvoicePage() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-50 flex items-start justify-center py-10 px-4 md:px-8">
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <main className="min-h-screen relative flex justify-center py-10 px-4 md:px-8 font-sans text-neutral-900">
+      
+      {/* Background Image & Overlay */}
+      <div className="fixed inset-0 z-0">
+        <Image
+          src={bgImg}
+          alt="Gym Background"
+          fill
+          className="object-cover"
+          placeholder="blur"
+        />
+        <div className="absolute inset-0 bg-neutral-900/80 backdrop-blur-sm" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* LEFT (FORM) - Spans 8 cols */}
         <section className="lg:col-span-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             
-            <header>
-              <h1 className="text-3xl font-bold text-neutral-900 flex items-center gap-2">
-                <div className="h-8 w-1 bg-red-600 rounded-full" />
-                New Invoice
-              </h1>
-              <p className="text-neutral-500 mt-2 ml-3">
-                Create a new membership invoice for gym access.
-              </p>
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+                  <div className="h-8 w-1 bg-red-600 rounded-full" />
+                  New Invoice
+                </h1>
+                <p className="text-neutral-400 mt-1 ml-3 text-sm">
+                  Create an invoice for gym access.
+                </p>
+              </div>
+              <Link 
+                href="/"
+                className="flex items-center gap-2 text-white/70 hover:text-white text-sm bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors border border-white/10"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back to Dashboard
+              </Link>
             </header>
 
             {/* CUSTOMER DETAILS */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20">
               <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
                 <User className="h-5 w-5 text-red-600" />
                 Customer Details
@@ -288,13 +316,13 @@ export default function NewInvoicePage() {
 
             {/* MEMBERSHIP PLANS */}
             <div className="space-y-4">
-              <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2 ml-1">
-                <Dumbbell className="h-5 w-5 text-red-600" />
+              <h2 className="text-lg font-bold text-white flex items-center gap-2 ml-1">
+                <Dumbbell className="h-5 w-5 text-red-500" />
                 Select Membership
               </h2>
 
               {loadingPlans ? (
-                <div className="p-8 text-center text-neutral-500 bg-white rounded-xl border border-dashed border-neutral-300">
+                <div className="p-8 text-center text-neutral-400 bg-white/5 rounded-xl border border-dashed border-neutral-700">
                   Loading plans...
                 </div>
               ) : (
@@ -307,10 +335,10 @@ export default function NewInvoicePage() {
                         onClick={() => setSelectedPlanCode(plan.code)}
                         className={`
                           relative cursor-pointer rounded-xl p-5 border-2 transition-all duration-200
-                          flex flex-col justify-between min-h-[140px] group
+                          flex flex-col justify-between min-h-[140px] group shadow-sm
                           ${isSelected 
-                            ? 'border-red-600 bg-red-50/50 shadow-md ring-1 ring-red-600' 
-                            : 'border-neutral-200 bg-white hover:border-red-300 hover:shadow-sm'
+                            ? 'border-red-600 bg-red-50 shadow-md ring-1 ring-red-600' 
+                            : 'border-transparent bg-white/95 hover:border-red-600/50 hover:bg-white'
                           }
                         `}
                       >
@@ -347,15 +375,15 @@ export default function NewInvoicePage() {
                       relative cursor-pointer rounded-xl p-5 border-2 border-dashed transition-all duration-200
                       flex flex-col justify-center items-center min-h-[140px] gap-3
                       ${selectedPlanCode === CUSTOM_PLAN_CODE 
-                        ? 'border-red-600 bg-red-50/50 ring-1 ring-red-600' 
-                        : 'border-neutral-300 bg-neutral-50 hover:border-red-400 hover:bg-white'
+                        ? 'border-red-600 bg-red-50 ring-1 ring-red-600' 
+                        : 'border-neutral-600 bg-white/10 hover:bg-white/20 hover:border-red-400'
                       }
                     `}
                   >
-                     <div className={`p-2 rounded-full ${selectedPlanCode === CUSTOM_PLAN_CODE ? 'bg-red-100 text-red-600' : 'bg-neutral-200 text-neutral-500'}`}>
+                     <div className={`p-2 rounded-full ${selectedPlanCode === CUSTOM_PLAN_CODE ? 'bg-red-100 text-red-600' : 'bg-neutral-800 text-neutral-400'}`}>
                         <Plus className="h-6 w-6" />
                      </div>
-                     <p className="font-semibold text-sm text-neutral-600">Custom Plan</p>
+                     <p className={`font-semibold text-sm ${selectedPlanCode === CUSTOM_PLAN_CODE ? 'text-neutral-900' : 'text-neutral-400'}`}>Custom Plan</p>
                   </div>
                 </div>
               )}
@@ -363,16 +391,16 @@ export default function NewInvoicePage() {
 
             {/* Custom Plan Fields (Conditionally Rendered) */}
             {selectedPlanCode === CUSTOM_PLAN_CODE && (
-              <div className="bg-red-50/50 rounded-xl p-6 border border-red-100 animate-in fade-in slide-in-from-top-4 duration-300">
-                <h3 className="text-sm font-bold text-red-800 uppercase tracking-wide mb-4">
-                  Configure Custom Plan
+              <div className="bg-white/95 backdrop-blur rounded-xl p-6 border-l-4 border-red-600 shadow-lg animate-in fade-in slide-in-from-top-4 duration-300">
+                <h3 className="text-sm font-bold text-red-700 uppercase tracking-wide mb-4 flex items-center gap-2">
+                  <Plus className="h-4 w-4" /> Configure Custom Plan
                 </h3>
                 <div className="grid gap-4 md:grid-cols-3">
                   <input
                     placeholder="Plan Label (e.g. 15 Days Special)"
                     value={customLabel}
                     onChange={(e) => setCustomLabel(e.target.value)}
-                    className="md:col-span-3 border border-red-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-600/20 focus:border-red-600 outline-none"
+                    className="md:col-span-3 border border-neutral-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-600/20 focus:border-red-600 outline-none"
                   />
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-neutral-500 text-sm">₹</span>
@@ -381,7 +409,7 @@ export default function NewInvoicePage() {
                       type="number"
                       value={customAmount}
                       onChange={(e) => setCustomAmount(e.target.value)}
-                      className="w-full border border-red-200 rounded-lg pl-7 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-red-600/20 focus:border-red-600 outline-none"
+                      className="w-full border border-neutral-200 rounded-lg pl-7 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-red-600/20 focus:border-red-600 outline-none"
                     />
                   </div>
                   <div className="relative">
@@ -390,7 +418,7 @@ export default function NewInvoicePage() {
                       type="number"
                       value={customDurationDays}
                       onChange={(e) => setCustomDurationDays(e.target.value)}
-                      className="w-full border border-red-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-600/20 focus:border-red-600 outline-none"
+                      className="w-full border border-neutral-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-600/20 focus:border-red-600 outline-none"
                     />
                     <span className="absolute right-3 top-2.5 text-neutral-500 text-xs font-medium">Days</span>
                   </div>
@@ -401,8 +429,8 @@ export default function NewInvoicePage() {
 
             {/* ADDONS */}
             <div className="space-y-4">
-              <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2 ml-1">
-                <Sparkles className="h-5 w-5 text-red-600" />
+              <h2 className="text-lg font-bold text-white flex items-center gap-2 ml-1">
+                <Sparkles className="h-5 w-5 text-red-500" />
                 Extras
               </h2>
 
@@ -414,8 +442,8 @@ export default function NewInvoicePage() {
                   className={`
                     cursor-pointer rounded-xl p-4 border-2 transition-all flex items-center gap-4
                     ${hasRegistrationFee 
-                      ? 'border-red-600 bg-red-50/50' 
-                      : 'border-neutral-200 bg-white hover:border-red-200'
+                      ? 'border-red-600 bg-red-50 shadow-md' 
+                      : 'border-transparent bg-white/95 hover:border-red-600/30'
                     }
                   `}
                 >
@@ -438,8 +466,8 @@ export default function NewInvoicePage() {
                   className={`
                     cursor-pointer rounded-xl p-4 border-2 transition-all flex items-center gap-4
                     ${includePT 
-                      ? 'border-red-600 bg-red-50/50' 
-                      : 'border-neutral-200 bg-white hover:border-red-200'
+                      ? 'border-red-600 bg-red-50 shadow-md' 
+                      : 'border-transparent bg-white/95 hover:border-red-600/30'
                     }
                   `}
                 >
@@ -461,8 +489,8 @@ export default function NewInvoicePage() {
 
             {/* ERROR MESSAGE */}
             {submitError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-sm flex items-center gap-2">
-                <span className="font-bold">Error:</span> {submitError}
+              <div className="bg-red-500/10 border border-red-500/50 text-red-200 p-4 rounded-lg text-sm flex items-center gap-2 backdrop-blur-sm">
+                <span className="font-bold text-red-400">Error:</span> {submitError}
               </div>
             )}
 
@@ -470,7 +498,7 @@ export default function NewInvoicePage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full md:w-auto px-8 py-3.5 rounded-xl bg-neutral-900 text-white font-semibold hover:bg-red-600 active:bg-red-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full md:w-auto px-8 py-3.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 active:bg-red-800 transition-all shadow-lg shadow-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? 'Creating Invoice...' : 'Generate Invoice'}
             </button>
@@ -481,10 +509,10 @@ export default function NewInvoicePage() {
         {/* RIGHT (SUMMARY) - Spans 4 cols */}
         <aside className="lg:col-span-4 space-y-6">
           <div className="sticky top-8">
-            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
-              <div className="bg-neutral-900 p-4 text-white">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+              <div className="bg-neutral-900 p-4 text-white border-b border-neutral-800">
                 <h2 className="font-bold flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
+                  <CreditCard className="h-4 w-4 text-red-500" />
                   Order Summary
                 </h2>
               </div>
@@ -499,7 +527,7 @@ export default function NewInvoicePage() {
                    </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Line Items Visual (Optional Enhancement) */}
+                    {/* Line Items */}
                     <div className="space-y-2 text-sm text-neutral-600 pb-4 border-b border-dashed border-neutral-200">
                       {selectedPlanCode !== CUSTOM_PLAN_CODE && (
                          <div className="flex justify-between">
