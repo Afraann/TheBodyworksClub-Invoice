@@ -29,6 +29,28 @@ type Plan = {
   gstRate: number;
 };
 
+// --- MOVED OUTSIDE: Helper Component ---
+const InputField = ({ 
+  icon: Icon, 
+  label, 
+  ...props 
+}: any) => (
+  <div className="space-y-1.5">
+    <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 ml-1">
+      {label}
+    </label>
+    <div className="relative group">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Icon className="h-4 w-4 text-neutral-400 group-focus-within:text-red-600 transition-colors" />
+      </div>
+      <input
+        {...props}
+        className="block w-full pl-10 pr-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600 transition-all"
+      />
+    </div>
+  </div>
+);
+
 export default function NewInvoicePage() {
   const router = useRouter();
 
@@ -221,29 +243,6 @@ export default function NewInvoicePage() {
     }
   }
 
-  // --- Helper Components for UI ---
-
-  const InputField = ({ 
-    icon: Icon, 
-    label, 
-    ...props 
-  }: any) => (
-    <div className="space-y-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 ml-1">
-        {label}
-      </label>
-      <div className="relative group">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Icon className="h-4 w-4 text-neutral-400 group-focus-within:text-red-600 transition-colors" />
-        </div>
-        <input
-          {...props}
-          className="block w-full pl-10 pr-3 py-2.5 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600 transition-all"
-        />
-      </div>
-    </div>
-  );
-
   return (
     <main className="min-h-screen bg-neutral-50 flex items-start justify-center py-10 px-4 md:px-8">
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -263,7 +262,7 @@ export default function NewInvoicePage() {
             </header>
 
             {/* CUSTOMER DETAILS */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-6">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100">
               <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
                 <User className="h-5 w-5 text-red-600" />
                 Customer Details
@@ -272,19 +271,17 @@ export default function NewInvoicePage() {
               <div className="grid gap-6 md:grid-cols-2">
                 <InputField
                   icon={User}
-                  label="Full Name"
                   type="text"
                   value={customerName}
                   onChange={(e: any) => setCustomerName(e.target.value)}
-                  placeholder="e.g. John Doe"
+                  placeholder="Full Name"
                 />
                 <InputField
                   icon={Phone}
-                  label="Phone Number"
                   type="tel"
                   value={customerPhone}
                   onChange={(e: any) => setCustomerPhone(e.target.value)}
-                  placeholder="e.g. 9876543210"
+                  placeholder="Phone Number"
                 />
               </div>
             </div>
