@@ -88,7 +88,6 @@ export default async function InvoicePage({ params }: PageProps) {
              </div>
              {/* Styling the PrintButton wrapper to match theme */}
                <PrintButton /> 
-             </div>
           </div>
         </div>
 
