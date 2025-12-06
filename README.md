@@ -1,36 +1,178 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧾 The Bodyworks Club — Invoice System
 
-## Getting Started
+A simple invoice-generation web application for gyms.
+Built with **Next.js**, **Prisma**, **PostgreSQL**, and **TailwindCSS**, focused on fast internal invoicing, GST handling, and thermal printing.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## ⭐ Features (V1)
+
+### ✔ Invoice Creation
+
+* Select membership plan
+* Custom plan option
+* 18% GST automatically calculated
+
+  * 9% CGST + 9% SGST
+* Non-taxable items:
+
+  * Personal Trainer
+  * Registration fee
+* Auto-generated invoice number
+
+### ✔ Invoice Preview & Print
+
+* Thermal printer friendly layout
+* Browser print support
+* Includes:
+
+  * gym info
+  * customer info
+  * GST breakdown
+
+### ✔ Invoice History
+
+* List of all invoices
+* Search by name/phone/invoice code
+* Filter date range (Today / Week / Month / All)
+* CSV export
+
+---
+
+## 🧮 Plans (pre-configured)
+
+| Plan             | Duration    | Base Price | GST        |
+| ---------------- | ----------- | ---------- | ---------- |
+| Basic            | 30 days     | ₹1499      | 18%        |
+| Standard         | 90 days     | ₹3999      | 18%        |
+| Premium          | 180 days    | ₹7499      | 18%        |
+| Ultimate         | 360 days    | ₹11999     | 18%        |
+| Daily            | 1 day       | ₹249       | 18%        |
+| Personal Trainer | 20 sessions | ₹7999      | **No GST** |
+| Registration Fee | —           | ₹499       | **No GST** |
+
+---
+
+## 🧩 Tech Stack
+
+| Layer          | Technology                     |
+| -------------- | ------------------------------ |
+| Frontend       | Next.js (App Router)           |
+| Styling        | TailwindCSS                    |
+| Database       | PostgreSQL                     |
+| ORM            | Prisma                         |
+| Deployment     | Vercel (recommended)           |
+| Authentication | Simple PIN based (no roles V1) |
+
+---
+
+## 📂 Important Directories
+
+```
+app/
+  invoices/
+     new/          → New invoice form
+     [invoiceCode]/ → Invoice preview & print
+  api/
+     invoices/     → GET + POST
+     invoices/export → CSV endpoint
+lib/
+  db.ts
+  calculations.ts
+prisma/
+  schema.prisma
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Running Locally
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Clone
 
-## Learn More
+```sh
+git clone https://github.com/Afraann/TheBodyworksClub-Invoice.git
+cd thebodyworksclub-invoice
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Install
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```sh
+npm install
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Environment file
 
-## Deploy on Vercel
+Create `.env`:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```sh
+DATABASE_URL="postgres://..."
+NEXTAUTH_SECRET="anything"
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Setup DB
+
+```sh
+npx prisma migrate dev --name init
+npx prisma db seed
+```
+
+### Start
+
+```sh
+npm run dev
+```
+
+Open:
+[http://localhost:3000](http://localhost:3000)
+
+---
+
+## 🔐 Authentication
+
+V1 uses **single shared PIN** authentication.
+PIN defined in environment or code (depending on implementation).
+For multi-branch & roles → planned future release.
+
+---
+
+## 📦 API Endpoints
+
+| Method | Route                  | Description    |
+| ------ | ---------------------- | -------------- |
+| POST   | `/api/invoices`        | Create invoice |
+| GET    | `/api/invoices`        | List invoices  |
+| GET    | `/api/invoices/export` | Download CSV   |
+
+---
+
+## 🖨 Printing Support
+
+* Works directly from browser (Ctrl+P / Cmd+P)
+* Thermal printer friendly
+* Minimal ink usage
+* Compact layout
+
+---
+
+## 🧭 Roadmap (Planned)
+
+* Branch switcher
+* Owner vs staff accounts
+* Dashboard charts
+* Membership database integration
+* WhatsApp invoice share
+* Dark mode (gym theme red + black)
+
+---
+
+## 👨‍💻 Developer
+
+* Built by **BlankSpace Agency**
+* Project scope: minimal operational invoice module for gym usage
+* Fully owned & deployed for client - The BodyworksClub
+
+---
+
+## 🏁 Version
+
+`v1.0.0` — Invoice, preview, search, CSV export
