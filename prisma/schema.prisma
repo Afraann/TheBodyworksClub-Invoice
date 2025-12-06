@@ -1,0 +1,115 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Branch {
+  id        String    @id @default(uuid())
+  name      String
+  address   String
+  phone     String
+  gstin     String
+  logoUrl   String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  settings  Setting[]
+  sessions  Session[]
+  invoices  Invoice[]
+}
+
+model Setting {
+  id            String   @id @default(uuid())
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  branchId      String
+  pinHash       String
+  pinUpdatedAt  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Session {
+  id         String   @id @default(uuid()) // stores in cookie
+  branch     Branch   @relation(fields: [branchId], references: [id])
+  branchId   String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  ipAddress  String?
+  userAgent  String?
+}
+
+model Plan {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  name          String
+  durationDays  Int?
+  baseAmount    Decimal   @db.Decimal(10, 2)
+  isTaxable     Boolean   @default(true)
+  gstRate       Decimal   @db.Decimal(5, 2) // 18.00, 0.00 etc.
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  invoiceItems  InvoiceItem[]
+}
+
+model Invoice {
+  id                  String        @id @default(uuid())
+  branch              Branch        @relation(fields: [branchId], references: [id])
+  branchId            String
+
+  invoiceNumber       Int           @unique // global across branches
+  invoiceCode         String        @unique // "001", "002" etc.
+
+  invoiceDate         DateTime      @default(now())
+  customerName        String
+  customerPhone       String
+
+  taxableSubtotal     Decimal       @db.Decimal(10, 2)
+  cgstAmount          Decimal       @db.Decimal(10, 2)
+  sgstAmount          Decimal       @db.Decimal(10, 2)
+  totalGst            Decimal       @db.Decimal(10, 2)
+  nontaxableSubtotal  Decimal       @db.Decimal(10, 2)
+  grandTotal          Decimal       @db.Decimal(10, 2)
+
+  isVoid              Boolean       @default(false)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  items               InvoiceItem[]
+}
+
+model InvoiceItem {
+  id                   String         @id @default(uuid())
+  invoice              Invoice        @relation(fields: [invoiceId], references: [id])
+  invoiceId            String
+
+  plan                 Plan?          @relation(fields: [planId], references: [id])
+  planId               String?
+
+  itemType             InvoiceItemType
+  description          String
+  durationDays         Int?
+  quantity             Int            @default(1)
+
+  baseAmount           Decimal        @db.Decimal(10, 2)
+  lineTotalBeforeTax   Decimal        @db.Decimal(10, 2)
+
+  isTaxable            Boolean
+  gstRate              Decimal        @db.Decimal(5, 2)
+
+  createdAt            DateTime       @default(now())
+}
+
+enum InvoiceItemType {
+  MEMBERSHIP
+  REGISTRATION_FEE
+  PERSONAL_TRAINER
+  CUSTOM
+}
