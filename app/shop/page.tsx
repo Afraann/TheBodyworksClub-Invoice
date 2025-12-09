@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, X, CheckCircle2, PackagePlus } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, X, CheckCircle2, PackagePlus, Pencil, Save, RotateCcw } from 'lucide-react';
 import Image from 'next/image';
 import bgImg from '../bg.jpg';
 
@@ -15,21 +15,26 @@ export default function ShopPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // UI States
+  // --- UI STATES ---
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
-  const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // New for Restock
   
-  // Inventory Form State
-  const [invFormData, setInvFormData] = useState({ name: '', price: '', stock: '', category: '' });
-  const [invSubmitting, setInvSubmitting] = useState(false);
+  // --- FORM STATES ---
+  // For Adding New
+  const [addFormData, setAddFormData] = useState({ name: '', price: '', stock: '', category: '' });
+  // For Editing/Restocking
+  const [editFormData, setEditFormData] = useState<Product | null>(null);
+  
+  const [submitting, setSubmitting] = useState(false);
 
-  // Checkout State
+  // --- CHECKOUT STATES ---
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'CASH' | 'UPI' | 'SPLIT'>('CASH');
   const [splitCash, setSplitCash] = useState('');
   const [splitUpi, setSplitUpi] = useState('');
 
-  // 1. Fetch Products
+  // 1. FETCH PRODUCTS
   const refreshProducts = () => {
     setLoading(true);
     fetch('/api/products')
@@ -44,14 +49,13 @@ export default function ShopPage() {
     refreshProducts();
   }, []);
 
-  // 2. Cart Logic
+  // 2. CART LOGIC
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(p => p.id === product.id);
       const currentQty = existing ? existing.quantity : 0;
       
-      // Stock Validation
-      if (currentQty >= product.stock) return prev;
+      if (currentQty >= product.stock) return prev; 
 
       if (existing) {
         return prev.map(p => p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p);
@@ -72,7 +76,7 @@ export default function ShopPage() {
 
         const newQty = p.quantity + delta;
         if (newQty < 1) return p;
-        if (newQty > product.stock) return p; // Cap at real stock
+        if (newQty > product.stock) return p; 
 
         return { ...p, quantity: newQty };
       }
@@ -82,15 +86,13 @@ export default function ShopPage() {
 
   const cartTotal = cart.reduce((acc, item) => acc + (Number(item.price) * item.quantity), 0);
 
-  // 3. Split Logic (Fixed Focus Issue)
+  // 3. CHECKOUT LOGIC
   const handleSplitInput = (type: 'CASH' | 'UPI', value: string) => {
-    // Allow clearing input
     if (value === '') {
         if (type === 'CASH') { setSplitCash(''); setSplitUpi(cartTotal.toFixed(2)); }
         else { setSplitUpi(''); setSplitCash(cartTotal.toFixed(2)); }
         return;
     }
-
     const numVal = parseFloat(value);
     if (isNaN(numVal)) return;
 
@@ -105,7 +107,6 @@ export default function ShopPage() {
     }
   };
 
-  // 4. Checkout
   const handleCheckout = async () => {
     let cash = 0, upi = 0;
     
@@ -151,56 +152,141 @@ export default function ShopPage() {
     }
   };
 
-  // 5. Inventory Submit
-  const handleInvSubmit = async (e: React.FormEvent) => {
+  // 4. ADD NEW PRODUCT LOGIC
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setInvSubmitting(true);
-    await fetch('/api/products', { method: 'POST', body: JSON.stringify(invFormData) });
-    setInvSubmitting(false);
-    setIsInventoryModalOpen(false);
-    setInvFormData({ name: '', price: '', stock: '', category: '' });
+    setSubmitting(true);
+    await fetch('/api/products', { method: 'POST', body: JSON.stringify(addFormData) });
+    setSubmitting(false);
+    setIsAddModalOpen(false);
+    setAddFormData({ name: '', price: '', stock: '', category: '' });
     refreshProducts();
   };
 
-  // --- RENDER HELPERS (Fixed: No component definitions inside render) ---
+  // 5. RESTOCK / EDIT LOGIC (NEW)
+  const openEditModal = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent adding to cart when clicking edit
+    setEditFormData(product);
+    setIsEditModalOpen(true);
+  };
 
-  const renderInventoryModal = () => {
-    if (!isInventoryModalOpen) return null;
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFormData) return;
+
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/products/${editFormData.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            price: editFormData.price,
+            stock: editFormData.stock,
+            category: editFormData.category
+        })
+      });
+      
+      if(res.ok) {
+          setIsEditModalOpen(false);
+          refreshProducts();
+      } else {
+          alert('Failed to update product');
+      }
+    } catch (err) {
+        alert('Error updating product');
+    } finally {
+        setSubmitting(false);
+    }
+  };
+
+  // --- RENDERERS ---
+
+  const renderAddModal = () => {
+    if (!isAddModalOpen) return null;
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm" onClick={() => setIsInventoryModalOpen(false)} />
+            <div className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)} />
             <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-neutral-50">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <PackagePlus className="h-5 w-5 text-red-600" /> Add New Product
                     </h3>
-                    <button onClick={() => setIsInventoryModalOpen(false)}><X className="h-5 w-5 text-neutral-400 hover:text-red-500" /></button>
+                    <button onClick={() => setIsAddModalOpen(false)}><X className="h-5 w-5 text-neutral-400 hover:text-red-500" /></button>
                 </div>
-                <form onSubmit={handleInvSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleAddSubmit} className="p-6 space-y-4">
                     <div>
                         <label className="text-xs font-bold uppercase text-neutral-500">Product Name</label>
                         <input className="w-full border border-neutral-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none" 
-                            required value={invFormData.name} onChange={e => setInvFormData({...invFormData, name: e.target.value})} placeholder="e.g. Whey Protein" />
+                            required value={addFormData.name} onChange={e => setAddFormData({...addFormData, name: e.target.value})} placeholder="e.g. Whey Protein" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-bold uppercase text-neutral-500">Price (₹)</label>
                             <input type="number" className="w-full border border-neutral-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none" 
-                                required value={invFormData.price} onChange={e => setInvFormData({...invFormData, price: e.target.value})} />
+                                required value={addFormData.price} onChange={e => setAddFormData({...addFormData, price: e.target.value})} />
                         </div>
                         <div>
                             <label className="text-xs font-bold uppercase text-neutral-500">Stock Qty</label>
                             <input type="number" className="w-full border border-neutral-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none" 
-                                required value={invFormData.stock} onChange={e => setInvFormData({...invFormData, stock: e.target.value})} />
+                                required value={addFormData.stock} onChange={e => setAddFormData({...addFormData, stock: e.target.value})} />
                         </div>
                     </div>
                     <div>
                         <label className="text-xs font-bold uppercase text-neutral-500">Category</label>
                         <input className="w-full border border-neutral-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none" 
-                            value={invFormData.category} onChange={e => setInvFormData({...invFormData, category: e.target.value})} placeholder="Optional" />
+                            value={addFormData.category} onChange={e => setAddFormData({...addFormData, category: e.target.value})} placeholder="Optional" />
                     </div>
-                    <button type="submit" disabled={invSubmitting} className="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition-colors">
-                        {invSubmitting ? 'Adding...' : 'Add to Inventory'}
+                    <button type="submit" disabled={submitting} className="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition-colors">
+                        {submitting ? 'Adding...' : 'Add to Inventory'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+  };
+
+  const renderEditModal = () => {
+    if (!isEditModalOpen || !editFormData) return null;
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm" onClick={() => setIsEditModalOpen(false)} />
+            <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-neutral-50">
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <RotateCcw className="h-5 w-5 text-blue-600" /> Restock / Edit
+                    </h3>
+                    <button onClick={() => setIsEditModalOpen(false)}><X className="h-5 w-5 text-neutral-400 hover:text-red-500" /></button>
+                </div>
+                <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                    <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-200">
+                        <label className="text-[10px] font-bold uppercase text-neutral-400">Product Name</label>
+                        <p className="font-bold text-neutral-900 text-lg">{editFormData.name}</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold uppercase text-neutral-500">Price (₹)</label>
+                            <input type="number" className="w-full border border-neutral-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-neutral-900" 
+                                required 
+                                value={editFormData.price} 
+                                onChange={e => setEditFormData({...editFormData, price: Number(e.target.value)})} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold uppercase text-neutral-500 text-blue-600">Total Stock</label>
+                            <input type="number" className="w-full border-2 border-blue-100 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-neutral-900 bg-blue-50/50" 
+                                required 
+                                value={editFormData.stock} 
+                                onChange={e => setEditFormData({...editFormData, stock: Number(e.target.value)})} />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold uppercase text-neutral-500">Category</label>
+                        <input className="w-full border border-neutral-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none" 
+                            value={editFormData.category || ''} 
+                            onChange={e => setEditFormData({...editFormData, category: e.target.value})} />
+                    </div>
+                    <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                        {submitting ? 'Saving...' : <><Save className="h-4 w-4"/> Update Details</>}
                     </button>
                 </form>
             </div>
@@ -304,8 +390,9 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col md:flex-row h-screen overflow-hidden text-neutral-900 font-sans">
       
-      {/* Modal */}
-      {renderInventoryModal()}
+      {/* Modals */}
+      {renderAddModal()}
+      {renderEditModal()}
 
       {/* Background Image */}
       <div className="fixed inset-0 z-0 pointer-events-none">
@@ -327,7 +414,7 @@ export default function ShopPage() {
            </div>
            
            {/* Mobile Inventory Button */}
-           <button onClick={() => setIsInventoryModalOpen(true)} className="md:hidden flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
+           <button onClick={() => setIsAddModalOpen(true)} className="md:hidden flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
               <Plus className="h-3 w-3" /> Stock
            </button>
         </header>
@@ -337,7 +424,7 @@ export default function ShopPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 
                 {/* 1. Add Stock Card (FIRST ITEM) */}
-                <button onClick={() => setIsInventoryModalOpen(true)} className="hidden md:flex flex-col items-center justify-center h-40 bg-white p-4 rounded-2xl border-2 border-dashed border-neutral-300 hover:bg-white hover:border-red-400 text-neutral-400 hover:text-red-600 transition-all shadow-sm">
+                <button onClick={() => setIsAddModalOpen(true)} className="hidden md:flex flex-col items-center justify-center h-40 bg-white p-4 rounded-2xl border-2 border-dashed border-neutral-300 hover:bg-white hover:border-red-400 text-neutral-400 hover:text-red-600 transition-all shadow-sm">
                     <div className="h-10 w-10 bg-neutral-100 rounded-full flex items-center justify-center mb-2">
                       <Plus className="h-5 w-5" />
                     </div>
@@ -360,10 +447,21 @@ export default function ShopPage() {
                                 }
                             `}
                         >
-                            <div className="space-y-1">
-                                <h3 className="font-bold text-neutral-900 leading-tight truncate">{product.name}</h3>
-                                <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">{product.category || 'General'}</p>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="font-bold text-neutral-900 leading-tight truncate pr-2 max-w-[120px]">{product.name}</h3>
+                                    <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">{product.category || 'General'}</p>
+                                </div>
+                                
+                                {/* Edit/Restock Button */}
+                                <button 
+                                    onClick={(e) => openEditModal(product, e)}
+                                    className="p-1.5 -mt-1 -mr-1 rounded-lg text-neutral-300 hover:bg-neutral-100 hover:text-blue-600 transition-colors"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                </button>
                             </div>
+
                             <div className="flex justify-between items-end mt-4">
                                 <span className="text-red-600 font-bold text-lg">₹{product.price}</span>
                                 <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase transition-colors ${!isOutOfStock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
