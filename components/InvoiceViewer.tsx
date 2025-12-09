@@ -4,23 +4,19 @@ import { useState, useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { Printer, FileText, ScrollText, Home, Plus } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { WhatsAppButton } from './WhatsappButton';
 
-// Types (Mirrors your Prisma types)
 type InvoiceViewerProps = {
-  invoice: any; // Using any for simplicity with Prisma includes
+  invoice: any;
 };
 
 export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
   const [printMode, setPrintMode] = useState<'A4' | 'THERMAL'>('A4');
   const componentRef = useRef<HTMLDivElement>(null);
 
-  // Print Handler
   const handlePrint = useReactToPrint({
     contentRef: componentRef, 
     documentTitle: `Invoice_${invoice.invoiceCode}`,
-    // We dynamically adjust page styling based on mode
     pageStyle: printMode === 'THERMAL' 
       ? `@page { size: 80mm auto; margin: 0; } body { margin: 5mm; }`
       : `@page { size: A4; margin: 20mm; }`
@@ -37,13 +33,17 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
   const branch = invoice.branch;
   const items = invoice.items;
 
+  // Ensure these numbers are safe
+  const cgst = Number(invoice.cgstAmount) || 0;
+  const sgst = Number(invoice.sgstAmount) || 0;
+  const totalGst = Number(invoice.totalGst) || 0;
+
   return (
     <div className="min-h-screen bg-neutral-100 flex flex-col items-center py-10 px-4 gap-6">
       
-      {/* 1. CONTROL PANEL (Screen Only) */}
+      {/* CONTROL PANEL */}
       <div className="w-full max-w-4xl bg-neutral-900 text-white p-4 rounded-xl shadow-xl flex flex-wrap items-center justify-between gap-4 print:hidden">
         
-        {/* Navigation */}
         <div className="flex items-center gap-3">
             <Link href="/" className="p-2 hover:bg-white/10 rounded-lg transition-colors text-neutral-400 hover:text-white">
                 <Home className="h-5 w-5" />
@@ -55,9 +55,7 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
             </div>
         </div>
 
-        {/* Print Controls */}
         <div className="flex items-center gap-3">
-             {/* Mode Toggles */}
              <div className="bg-black/50 p-1 rounded-lg flex items-center border border-white/10">
                 <button 
                   onClick={() => setPrintMode('A4')}
@@ -73,7 +71,6 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
                 </button>
              </div>
 
-             {/* Actions */}
              <WhatsAppButton 
                 phone={invoice.customerPhone} 
                 invoiceCode={invoice.invoiceCode} 
@@ -88,23 +85,19 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
         </div>
       </div>
 
-      {/* 2. PREVIEW AREA */}
+      {/* PREVIEW AREA */}
       <div className="overflow-auto w-full flex justify-center pb-20">
           
-          {/* THE INVOICE CONTAINER */}
-          {/* We dynamically change width based on mode */}
           <div 
             ref={componentRef}
             id="invoice-preview"
             className={`bg-white text-neutral-900 shadow-2xl overflow-hidden print:shadow-none transition-all duration-300 origin-top
                 ${printMode === 'THERMAL' 
-                    ? 'w-[80mm] min-h-[100mm] text-[10px] font-mono'  // Thermal Mode Classes
-                    : 'w-[210mm] min-h-[297mm] p-10 font-sans'       // A4 Mode Classes
+                    ? 'w-[80mm] min-h-[100mm] text-[10px] font-mono' 
+                    : 'w-[210mm] min-h-[297mm] p-10 font-sans'
                 }
             `}
           >
-            {/* --- CONTENT SWITCHER BASED ON MODE --- */}
-
             {printMode === 'A4' ? (
                 // === A4 LAYOUT ===
                 <div className="h-full flex flex-col justify-between">
@@ -156,17 +149,22 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
                         </table>
                     </div>
 
-                    {/* Footer / Totals */}
+                    {/* Footer / Totals (A4) */}
                     <div>
                         <div className="flex justify-end">
                             <div className="w-64 space-y-2 text-sm">
                                 <div className="flex justify-between text-neutral-500">
-                                    <span>Subtotal</span>
+                                    <span>Taxable Value</span>
                                     <span>{formatCurrency(Number(invoice.taxableSubtotal))}</span>
                                 </div>
+                                {/* SPLIT GST HERE */}
+                                <div className="flex justify-between text-neutral-500">
+                                    <span>CGST (9%)</span>
+                                    <span>{formatCurrency(cgst)}</span>
+                                </div>
                                 <div className="flex justify-between text-neutral-500 border-b border-neutral-100 pb-2">
-                                    <span>GST (18%)</span>
-                                    <span>{formatCurrency(Number(invoice.totalGst))}</span>
+                                    <span>SGST (9%)</span>
+                                    <span>{formatCurrency(sgst)}</span>
                                 </div>
                                 <div className="flex justify-between text-xl font-black text-neutral-900 pt-2">
                                     <span>Total</span>
@@ -225,14 +223,20 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
                         </tbody>
                     </table>
 
+                    {/* Footer / Totals (THERMAL) */}
                     <div className="space-y-1 text-[10px] border-t-2 border-black/10 border-dashed pt-2">
                         <div className="flex justify-between text-neutral-600">
-                            <span>Subtotal</span>
+                            <span>Taxable</span>
                             <span>{Number(invoice.taxableSubtotal).toFixed(2)}</span>
                         </div>
+                        {/* SPLIT GST HERE */}
                         <div className="flex justify-between text-neutral-600">
-                            <span>GST</span>
-                            <span>{Number(invoice.totalGst).toFixed(2)}</span>
+                            <span>CGST (9%)</span>
+                            <span>{cgst.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-neutral-600">
+                            <span>SGST (9%)</span>
+                            <span>{sgst.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-lg font-black mt-2 pt-2 border-t border-black">
                             <span>TOTAL</span>
