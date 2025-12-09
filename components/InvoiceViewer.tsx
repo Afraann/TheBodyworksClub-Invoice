@@ -2,8 +2,9 @@
 
 import { useState, useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
-import { Printer, FileText, ScrollText, Home, Plus } from 'lucide-react';
+import { Printer, FileText, ScrollText, Home } from 'lucide-react';
 import Link from 'next/link';
+// Removed 'next/image' because standard <img> tag often works better for print scaling
 import { WhatsAppButton } from './WhatsappButton';
 
 type InvoiceViewerProps = {
@@ -15,11 +16,11 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
   const componentRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
-    contentRef: componentRef, 
+    contentRef: componentRef,
     documentTitle: `Invoice_${invoice.invoiceCode}`,
     pageStyle: printMode === 'THERMAL' 
       ? `@page { size: 80mm auto; margin: 0; } body { margin: 5mm; }`
-      : `@page { size: A4; margin: 20mm; }`
+      : `@page { size: A4; margin: 0; } body { margin: 0; }` 
   });
 
   const formatCurrency = (amount: number) => {
@@ -33,10 +34,11 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
   const branch = invoice.branch;
   const items = invoice.items;
 
-  // Ensure these numbers are safe
+  // Calculations
   const cgst = Number(invoice.cgstAmount) || 0;
   const sgst = Number(invoice.sgstAmount) || 0;
-  const totalGst = Number(invoice.totalGst) || 0;
+  // If you need tax breakdown per item, you might need extra logic, 
+  // but usually for gym invoices, we just show the totals.
 
   return (
     <div className="min-h-screen bg-neutral-100 flex flex-col items-center py-10 px-4 gap-6">
@@ -61,7 +63,7 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
                   onClick={() => setPrintMode('A4')}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${printMode === 'A4' ? 'bg-white text-neutral-900 shadow' : 'text-neutral-400 hover:text-white'}`}
                 >
-                    <FileText className="h-4 w-4" /> A4 Standard
+                    <FileText className="h-4 w-4" /> Template View
                 </button>
                 <button 
                   onClick={() => setPrintMode('THERMAL')}
@@ -93,93 +95,112 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
             id="invoice-preview"
             className={`bg-white text-neutral-900 shadow-2xl overflow-hidden print:shadow-none transition-all duration-300 origin-top
                 ${printMode === 'THERMAL' 
-                    ? 'w-[80mm] min-h-[100mm] text-[10px] font-mono' 
-                    : 'w-[210mm] min-h-[297mm] p-10 font-sans'
+                    ? 'w-[80mm] min-h-[100mm] text-[10px] font-mono p-2 pb-10' 
+                    : 'w-[210mm] h-[297mm] relative' 
                 }
             `}
           >
             {printMode === 'A4' ? (
-                // === A4 LAYOUT ===
-                <div className="h-full flex flex-col justify-between">
-                    <div>
-                        {/* Header */}
-                        <header className="flex justify-between items-start border-b-2 border-neutral-100 pb-8 mb-8">
-                            <div>
-                                <h1 className="text-4xl font-black text-red-600 uppercase tracking-tighter mb-2">{branch?.name}</h1>
-                                <div className="text-sm text-neutral-500 space-y-1 font-medium">
-                                    <p>{branch?.address}</p>
-                                    <p>Phone: {branch?.phone}</p>
-                                    <p>GSTIN: {branch?.gstin}</p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <h2 className="text-6xl font-black text-neutral-100 uppercase tracking-tighter">Invoice</h2>
-                                <div className="mt-4 text-sm">
-                                    <p className="font-bold text-neutral-900">#{invoice.invoiceCode}</p>
-                                    <p className="text-neutral-500">{new Date(invoice.invoiceDate).toLocaleDateString('en-IN', { dateStyle: 'long' })}</p>
-                                </div>
-                            </div>
-                        </header>
+                // === A4 TEMPLATE LAYOUT ===
+                <>
+                    {/* 1. BACKGROUND IMAGE */}
+                    <div className="absolute inset-0 z-0">
+                        {/* Ensure 'Template.jpg' is strictly named exactly as in /public folder */}
+                        <img 
+                            src="/Template.jpg" 
+                            alt="Invoice Template" 
+                            className="w-full h-full object-cover"
+                        />
+                    </div>
 
-                        {/* Bill To */}
-                        <section className="mb-10">
-                            <h3 className="text-xs font-bold uppercase text-neutral-400 tracking-wider mb-2">Bill To</h3>
-                            <p className="text-xl font-bold text-neutral-900">{invoice.customerName}</p>
-                            <p className="text-neutral-500">{invoice.customerPhone}</p>
-                        </section>
+                    {/* 2. OVERLAY DATA (Adjusted Coordinates) */}
+                    
+                    {/* LEFT COLUMN: Customer Info */}
+                    {/* 'BILLED TO:' is roughly top: 24.5%, left: 5% */}
+                    <div className="absolute z-10 top-[24%] left-[22%] font-bold text-neutral-800 uppercase tracking-wide">
+                        {invoice.customerName}
+                    </div>
 
-                        {/* Table */}
-                        <table className="w-full mb-8">
-                            <thead className="bg-neutral-50">
-                                <tr>
-                                    <th className="text-left py-3 px-4 text-xs font-bold uppercase text-neutral-500 tracking-wider rounded-l-lg">Description</th>
-                                    <th className="text-center py-3 px-4 text-xs font-bold uppercase text-neutral-500 tracking-wider">Qty</th>
-                                    <th className="text-right py-3 px-4 text-xs font-bold uppercase text-neutral-500 tracking-wider rounded-r-lg">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-neutral-100">
-                                {items.map((item: any) => (
-                                    <tr key={item.id}>
-                                        <td className="py-4 px-4 font-bold text-neutral-800">{item.description}</td>
-                                        <td className="py-4 px-4 text-center text-neutral-500">{item.quantity}</td>
-                                        <td className="py-4 px-4 text-right font-bold text-neutral-900">{formatCurrency(Number(item.lineTotalBeforeTax))}</td>
+                    {/* 'CONTACT NO:' is roughly top: 27%, left: 5% */}
+                    <div className="absolute z-10 top-[26.5%] left-[25%] font-bold text-neutral-800 font-mono">
+                        {invoice.customerPhone}
+                    </div>
+
+
+                    {/* RIGHT COLUMN: Invoice Details */}
+                    {/* 'INVOICE NO:' is roughly top: 24.5%, left: 55% */}
+                    <div className="absolute z-10 top-[24%] left-[75%] font-bold text-neutral-800">
+                        {invoice.invoiceCode}
+                    </div>
+
+                    {/* 'DATE:' is roughly top: 27%, left: 55% */}
+                    <div className="absolute z-10 top-[26.2%] left-[75%] font-bold text-neutral-800">
+                        {new Date(invoice.invoiceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+
+                    {/* 'GSTIN:' is roughly top: 29.5%, left: 55% */}
+                    <div className="absolute z-10 top-[28.74%] left-[75%] font-bold text-neutral-800">
+                        {branch?.gstin || 'N/A'}
+                    </div>
+
+
+                    {/* 3. TABLE AREA */}
+                    {/* Header line is ~42%, first data row starts ~46% */}
+                    <div className="absolute z-10 top-[48%] left-[11%] right-[7%]">
+                        <table className="w-full text-sm border-collapse">
+                            <tbody>
+                                {items.map((item: any, idx: number) => (
+                                    <tr key={item.id} className="h-8 align-top">
+                                        {/* Description matches 'DESCRIPTION' column */}
+                                        <td className="w-[45%] pl-2 font-bold text-neutral-800 uppercase">
+                                            {item.description}
+                                        </td>
+                                        
+                                        {/* Duration matches 'DURATION' column (Centered) */}
+                                        <td className="w-[30%] pl-8 font-bold text-neutral-600">
+                                            {item.durationDays ? `${item.durationDays} Days` : '-'}
+                                        </td>
+                                        
+                                        {/* Amount matches 'AMOUNT' column (Right aligned) */}
+                                        <td className="w-[25%] text-right pr-4 font-bold text-neutral-900">
+                                            {formatCurrency(Number(item.lineTotalBeforeTax))}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
 
-                    {/* Footer / Totals (A4) */}
-                    <div>
-                        <div className="flex justify-end">
-                            <div className="w-64 space-y-2 text-sm">
-                                <div className="flex justify-between text-neutral-500">
-                                    <span>Taxable Value</span>
-                                    <span>{formatCurrency(Number(invoice.taxableSubtotal))}</span>
-                                </div>
-                                {/* SPLIT GST HERE */}
-                                <div className="flex justify-between text-neutral-500">
-                                    <span>CGST (9%)</span>
-                                    <span>{formatCurrency(cgst)}</span>
-                                </div>
-                                <div className="flex justify-between text-neutral-500 border-b border-neutral-100 pb-2">
-                                    <span>SGST (9%)</span>
-                                    <span>{formatCurrency(sgst)}</span>
-                                </div>
-                                <div className="flex justify-between text-xl font-black text-neutral-900 pt-2">
-                                    <span>Total</span>
-                                    <span>{formatCurrency(Number(invoice.grandTotal))}</span>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className="mt-12 pt-8 border-t border-neutral-100 text-center text-neutral-400 text-xs">
-                            <p>Thank you for your business.</p>
-                        </div>
+                    {/* 4. TOTALS AREA */}
+                    {/* Labels are pre-printed. We just need to place values to the right of them. 
+                        Sub-Total label ~56.5% top
+                        CGST label ~59% top
+                        SGST label ~61.5% top
+                        TOTAL label ~66% top
+                        Column is roughly at left: 75% or aligned right at 8% margin
+                    */}
+                    
+                    <div className="absolute z-10 top-[55.6%] right-[9%] w-32 text-right text-sm font-bold text-neutral-700">
+                        {formatCurrency(Number(invoice.taxableSubtotal))}
                     </div>
-                </div>
+
+                    <div className="absolute z-10 top-[58%] right-[9%] w-32 text-right text-sm font-bold text-neutral-700">
+                        {formatCurrency(cgst)}
+                    </div>
+
+                    <div className="absolute z-10 top-[60%] right-[9%] w-32 text-right text-sm font-bold text-neutral-700">
+                        {formatCurrency(sgst)}
+                    </div>
+
+                    {/* Grand Total - slightly larger */}
+                    <div className="absolute z-10 top-[64.7%] right-[8%] w-40 text-right text-xl font-black text-neutral-900">
+                        {formatCurrency(Number(invoice.grandTotal))}
+                    </div>
+
+                </>
             ) : (
-                // === THERMAL LAYOUT (80mm) ===
+                // === THERMAL LAYOUT (Unchanged) ===
                 <div className="p-2 pb-10">
                     <div className="text-center mb-4 pb-4 border-b-2 border-black/10 border-dashed">
                         <h2 className="text-xl font-black uppercase mb-1">{branch?.name}</h2>
@@ -223,13 +244,11 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
                         </tbody>
                     </table>
 
-                    {/* Footer / Totals (THERMAL) */}
                     <div className="space-y-1 text-[10px] border-t-2 border-black/10 border-dashed pt-2">
                         <div className="flex justify-between text-neutral-600">
                             <span>Taxable</span>
                             <span>{Number(invoice.taxableSubtotal).toFixed(2)}</span>
                         </div>
-                        {/* SPLIT GST HERE */}
                         <div className="flex justify-between text-neutral-600">
                             <span>CGST (9%)</span>
                             <span>{cgst.toFixed(2)}</span>
@@ -246,7 +265,6 @@ export function InvoiceViewer({ invoice }: InvoiceViewerProps) {
 
                     <div className="mt-6 text-center text-[9px] font-medium text-neutral-500">
                         <p>THANK YOU!</p>
-                        <p>Keep Training, Keep Growing.</p>
                         <div className="mt-2 text-[8px] opacity-50">
                             {new Date().toLocaleString()}
                         </div>
