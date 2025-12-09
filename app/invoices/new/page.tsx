@@ -427,65 +427,7 @@ export default function NewInvoicePage() {
             )}
 
 
-            {/* ADDONS */}
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2 ml-1">
-                <Sparkles className="h-5 w-5 text-red-500" />
-                Extras
-              </h2>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                
-                {/* Registration Fee Card */}
-                <div 
-                  onClick={() => setHasRegistrationFee(!hasRegistrationFee)}
-                  className={`
-                    cursor-pointer rounded-xl p-4 border-2 transition-all flex items-center gap-4
-                    ${hasRegistrationFee 
-                      ? 'border-red-600 bg-red-50 shadow-md' 
-                      : 'border-transparent bg-white/95 hover:border-red-600/30'
-                    }
-                  `}
-                >
-                  <div className={`
-                    h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-colors
-                    ${hasRegistrationFee ? 'bg-red-600 text-white' : 'bg-neutral-100 text-neutral-400'}
-                  `}>
-                    <CreditCard className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className={`font-semibold ${hasRegistrationFee ? 'text-red-900' : 'text-neutral-700'}`}>Registration Fee</p>
-                    <p className="text-xs text-neutral-500">One-time fee • ₹499</p>
-                  </div>
-                  {hasRegistrationFee && <Check className="h-5 w-5 text-red-600" />}
-                </div>
-
-                {/* PT Card */}
-                <div 
-                  onClick={() => setIncludePT(!includePT)}
-                  className={`
-                    cursor-pointer rounded-xl p-4 border-2 transition-all flex items-center gap-4
-                    ${includePT 
-                      ? 'border-red-600 bg-red-50 shadow-md' 
-                      : 'border-transparent bg-white/95 hover:border-red-600/30'
-                    }
-                  `}
-                >
-                  <div className={`
-                    h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-colors
-                    ${includePT ? 'bg-red-600 text-white' : 'bg-neutral-100 text-neutral-400'}
-                  `}>
-                    <Timer className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className={`font-semibold ${includePT ? 'text-red-900' : 'text-neutral-700'}`}>Personal Trainer</p>
-                    <p className="text-xs text-neutral-500">20 Sessions • ₹{ptPlan?.baseAmount || '---'}</p>
-                  </div>
-                  {includePT && <Check className="h-5 w-5 text-red-600" />}
-                </div>
-
-              </div>
-            </div>
+           
 
             {/* ERROR MESSAGE */}
             {submitError && (

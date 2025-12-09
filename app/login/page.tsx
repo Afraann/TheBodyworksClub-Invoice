@@ -64,7 +64,7 @@ function LoginForm() {
             type="password"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
-            className="block w-full pl-10 pr-3 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm focus:ring-2 focus:ring-red-600/20 focus:border-red-600 outline-none transition-all placeholder:text-neutral-400 text-center tracking-widest font-bold text-lg"
+            className="block w-full pl-10 pr-3 py-3 bg-black border border-neutral-200 rounded-xl text-sm focus:ring-2 focus:ring-red-600/20 focus:border-red-600 outline-none transition-all placeholder:text-neutral-400 text-center tracking-widest font-bold text-lg"
             placeholder="••••"
             autoComplete="off"
             maxLength={4}
