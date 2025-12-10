@@ -18,7 +18,6 @@ import {
   AlertCircle 
 } from 'lucide-react';
 
-// Import local assets
 import bgImg from '../bg.jpg';
 
 type InvoiceListItem = {
@@ -29,6 +28,9 @@ type InvoiceListItem = {
   customerName: string;
   customerPhone: string;
   grandTotal: number;
+  totalGst: number;
+  taxableSubtotal: number;
+  nontaxableSubtotal: number;
   mainItemDescription: string;
 };
 
@@ -57,7 +59,7 @@ export default function InvoicesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [searchText, setSearchText] = useState('');
-  const [range, setRange] = useState('month');
+  const [range, setRange] = useState('week'); // CHANGED DEFAULT TO WEEK
 
   async function loadInvoices(params?: { search?: string; range?: string }) {
     try {
@@ -92,7 +94,7 @@ export default function InvoicesPage() {
   }
 
   useEffect(() => {
-    loadInvoices({ range: 'month' });
+    loadInvoices({ range: 'week' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -113,8 +115,8 @@ export default function InvoicesPage() {
 
   function handleClearFilters() {
     setSearchText('');
-    setRange('month');
-    loadInvoices({ search: '', range: 'month' });
+    setRange('week'); // Reset to week
+    loadInvoices({ search: '', range: 'week' });
   }
 
   function handleExportCsv() {
@@ -128,7 +130,6 @@ export default function InvoicesPage() {
     window.open(url.toString(), '_blank');
   }
 
-  // --- Helper for Currency ---
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -136,6 +137,15 @@ export default function InvoicesPage() {
       minimumFractionDigits: 2,
     }).format(amount);
   };
+
+  // --- CALCULATE SUMMARY STATS ---
+  const summary = invoices.reduce((acc, curr) => {
+    acc.totalRevenue += curr.grandTotal;
+    acc.totalTax += curr.totalGst;
+    // Net Revenue = Total - Tax
+    acc.netRevenue += (curr.grandTotal - curr.totalGst);
+    return acc;
+  }, { totalRevenue: 0, totalTax: 0, netRevenue: 0 });
 
   return (
     <main className="min-h-screen relative flex flex-col items-center p-4 md:p-8">
@@ -192,7 +202,23 @@ export default function InvoicesPage() {
           </div>
         </header>
 
-        {/* 3. Filters Section */}
+        {/* 3. Stats Summary Section */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm flex flex-col justify-between">
+                <p className="text-xs font-bold uppercase text-neutral-400 tracking-wider">Revenue (Total)</p>
+                <p className="text-2xl font-black text-neutral-900 mt-1">{formatCurrency(summary.totalRevenue)}</p>
+            </div>
+            <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm flex flex-col justify-between">
+                <p className="text-xs font-bold uppercase text-neutral-400 tracking-wider">Tax (GST)</p>
+                <p className="text-2xl font-black text-red-600 mt-1">{formatCurrency(summary.totalTax)}</p>
+            </div>
+            <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm flex flex-col justify-between">
+                <p className="text-xs font-bold uppercase text-neutral-400 tracking-wider">Revenue (After Tax)</p>
+                <p className="text-2xl font-black text-green-600 mt-1">{formatCurrency(summary.netRevenue)}</p>
+            </div>
+        </section>
+
+        {/* 4. Filters Section */}
         <section className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
           <form
             onSubmit={handleApplyFilters}
@@ -267,7 +293,7 @@ export default function InvoicesPage() {
           )}
         </section>
 
-        {/* 4. Data Table */}
+        {/* 5. Data Table */}
         <section className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
