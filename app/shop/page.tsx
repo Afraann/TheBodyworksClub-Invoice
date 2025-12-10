@@ -18,7 +18,10 @@ export default function ShopPage() {
   // --- UI STATES ---
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // New for Restock
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
+  // --- NEW STATE: DELETE MODE ---
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
   
   // --- FORM STATES ---
   // For Adding New
@@ -51,6 +54,9 @@ export default function ShopPage() {
 
   // 2. CART LOGIC
   const addToCart = (product: Product) => {
+    // Disable adding to cart if in delete mode
+    if (isDeleteMode) return;
+
     setCart(prev => {
       const existing = prev.find(p => p.id === product.id);
       const currentQty = existing ? existing.quantity : 0;
@@ -163,7 +169,7 @@ export default function ShopPage() {
     refreshProducts();
   };
 
-  // 5. RESTOCK / EDIT LOGIC (NEW)
+  // 5. RESTOCK / EDIT LOGIC
   const openEditModal = (product: Product, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent adding to cart when clicking edit
     setEditFormData(product);
@@ -196,6 +202,24 @@ export default function ShopPage() {
         alert('Error updating product');
     } finally {
         setSubmitting(false);
+    }
+  };
+
+  // --- NEW DELETE LOGIC ---
+  const handleDeleteProduct = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this product?')) return;
+
+    // Optimistic remove
+    setProducts(prev => prev.filter(p => p.id !== id));
+
+    try {
+      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      // Logic handled by optimistic update, but we can refresh to be safe
+      refreshProducts();
+    } catch (err) {
+      alert('Failed to delete');
+      refreshProducts(); // Revert on error
     }
   };
 
@@ -266,17 +290,25 @@ export default function ShopPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-bold uppercase text-neutral-500">Price (₹)</label>
-                            <input type="number" className="w-full border border-neutral-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-neutral-900" 
+                            <input 
+                                type="number" 
+                                className="w-full border border-neutral-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-neutral-900" 
                                 required 
                                 value={editFormData.price} 
-                                onChange={e => setEditFormData({...editFormData, price: Number(e.target.value)})} />
+                                onFocus={(e) => e.target.select()} // --- FIX: SELECT ON FOCUS ---
+                                onChange={e => setEditFormData({...editFormData, price: Number(e.target.value)})} 
+                            />
                         </div>
                         <div>
                             <label className="text-xs font-bold uppercase text-neutral-500 text-blue-600">Total Stock</label>
-                            <input type="number" className="w-full border-2 border-blue-100 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-neutral-900 bg-blue-50/50" 
+                            <input 
+                                type="number" 
+                                className="w-full border-2 border-blue-100 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-neutral-900 bg-blue-50/50" 
                                 required 
                                 value={editFormData.stock} 
-                                onChange={e => setEditFormData({...editFormData, stock: Number(e.target.value)})} />
+                                onFocus={(e) => e.target.select()} // --- FIX: SELECT ON FOCUS ---
+                                onChange={e => setEditFormData({...editFormData, stock: Number(e.target.value)})} 
+                            />
                         </div>
                     </div>
                     <div>
@@ -409,7 +441,9 @@ export default function ShopPage() {
              </Link>
              <div>
                 <h1 className="text-2xl font-black uppercase tracking-wide text-neutral-900 leading-none">Gym Shop</h1>
-                <p className="text-xs text-neutral-800 font-bold uppercase tracking-wider mt-1">POS System</p>
+                <p className="text-xs text-neutral-800 font-bold uppercase tracking-wider mt-1">
+                    {isDeleteMode ? 'Delete Mode' : 'POS System'}
+                </p>
              </div>
            </div>
            
@@ -439,27 +473,38 @@ export default function ShopPage() {
 
                     return (
                         <div key={product.id} 
-                            onClick={() => !isOutOfStock && addToCart(product)}
+                            onClick={(e) => isDeleteMode ? handleDeleteProduct(product.id, e) : (!isOutOfStock && addToCart(product))}
                             className={`group flex justify-between flex-col relative h-40 bg-white p-4 rounded-2xl border-2 transition-all cursor-pointer active:scale-95 shadow-sm hover:shadow-md
-                                ${isOutOfStock
-                                    ? 'border-neutral-100 opacity-60 grayscale cursor-not-allowed' 
-                                    : 'border-white hover:border-red-600'
+                                ${isDeleteMode 
+                                    ? 'border-red-100 bg-red-50 animate-pulse hover:border-red-500' 
+                                    : isOutOfStock
+                                        ? 'border-neutral-100 opacity-60 grayscale cursor-not-allowed' 
+                                        : 'border-white hover:border-red-600'
                                 }
                             `}
                         >
+                            {/* DELETE OVERLAY */}
+                            {isDeleteMode && (
+                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-red-500/10 backdrop-blur-[1px] rounded-2xl">
+                                    <Trash2 className="h-8 w-8 text-red-600" />
+                                </div>
+                            )}
+
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h3 className="font-bold text-neutral-900 leading-tight truncate pr-2 max-w-[120px]">{product.name}</h3>
                                     <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">{product.category || 'General'}</p>
                                 </div>
                                 
-                                {/* Edit/Restock Button */}
-                                <button 
-                                    onClick={(e) => openEditModal(product, e)}
-                                    className="p-1.5 -mt-1 -mr-1 rounded-lg text-neutral-300 hover:bg-neutral-100 hover:text-blue-600 transition-colors"
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </button>
+                                {/* Edit/Restock Button (Hide in Delete Mode) */}
+                                {!isDeleteMode && (
+                                    <button 
+                                        onClick={(e) => openEditModal(product, e)}
+                                        className="p-1.5 -mt-1 -mr-1 rounded-lg text-neutral-300 hover:bg-neutral-100 hover:text-blue-600 transition-colors"
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                    </button>
+                                )}
                             </div>
 
                             <div className="flex justify-between items-end mt-4">
@@ -504,6 +549,16 @@ export default function ShopPage() {
               </div>
           </div>
       )}
+
+      {/* --- FLOATING DELETE TOGGLE BUTTON --- */}
+      <div className="fixed bottom-24 right-4 md:bottom-8 md:right-[25rem] z-40">
+         <button 
+            onClick={() => setIsDeleteMode(!isDeleteMode)}
+            className={`h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95 ${isDeleteMode ? 'bg-red-600 text-white rotate-180' : 'bg-white text-neutral-400 hover:text-red-600'}`}
+         >
+            {isDeleteMode ? <X className="h-6 w-6" /> : <Trash2 className="h-6 w-6" />}
+         </button>
+      </div>
 
     </div>
   );
