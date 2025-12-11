@@ -3,68 +3,220 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Calendar } from 'lucide-react';
+import { ArrowLeft, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import bgImg from '../bg.jpg';
+
+// --- CONFIGURATION ---
+const BUSINESS_START_DATE = new Date('2025-11-28T00:00:00');
 
 export default function SalesHistoryPage() {
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState('today');
+  
+  // View State
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
 
+  // --- HELPERS ---
+
+  const getToday = () => {
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    return d;
+  };
+
+  const canGoBack = () => currentDate > BUSINESS_START_DATE;
+
+  const canGoForward = () => {
+    const today = getToday();
+    if (viewMode === 'day') return currentDate < today;
+    if (viewMode === 'month') return currentDate.getMonth() < today.getMonth() || currentDate.getFullYear() < today.getFullYear();
+    // Week: simplistic check
+    return currentDate < today;
+  };
+
+  // Calculate Week Range Display (e.g. "Dec 01 - Dec 07, 2025")
+  const getWeekRangeString = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 is Sun
+    // Adjust to Monday
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    
+    const start = new Date(d);
+    start.setDate(diff);
+    
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+
+    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    const startStr = start.toLocaleDateString('en-IN', opts);
+    const endStr = end.toLocaleDateString('en-IN', opts);
+    
+    return `${startStr} - ${endStr}, ${end.getFullYear()}`;
+  };
+
+  // --- HANDLERS ---
+
+  const handlePrev = () => {
+    if (!canGoBack()) return;
+    const newDate = new Date(currentDate);
+    if (viewMode === 'day') newDate.setDate(newDate.getDate() - 1);
+    if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7);
+    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
+    
+    if (newDate < BUSINESS_START_DATE) setCurrentDate(BUSINESS_START_DATE);
+    else setCurrentDate(newDate);
+  };
+
+  const handleNext = () => {
+    if (!canGoForward()) return;
+    const newDate = new Date(currentDate);
+    if (viewMode === 'day') newDate.setDate(newDate.getDate() + 1);
+    if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7);
+    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
+    
+    const today = new Date();
+    if (newDate > today) setCurrentDate(today);
+    else setCurrentDate(newDate);
+  };
+
+  const toInputString = (date: Date, type: 'day' | 'week' | 'month') => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    if (type === 'day') return `${year}-${month}-${day}`;
+    if (type === 'month') return `${year}-${month}`;
+    if (type === 'week') {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+        const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
+        return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+    }
+    return '';
+  };
+
+  const handleDateChange = (val: string) => {
+    if(!val) return;
+    
+    let newDate;
+    if (viewMode === 'week') {
+        const [y, w] = val.split('-W');
+        newDate = new Date(parseInt(y), 0, (parseInt(w) * 7) - 6);
+    } else {
+        newDate = new Date(val);
+    }
+
+    // Clamp
+    if (newDate < BUSINESS_START_DATE) setCurrentDate(BUSINESS_START_DATE);
+    else if (newDate > new Date()) setCurrentDate(new Date());
+    else setCurrentDate(newDate);
+  };
+
+  // --- FETCH DATA ---
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/sales/history?range=${range}`)
+    const isoDate = currentDate.toISOString();
+    
+    fetch(`/api/sales/history?mode=${viewMode}&date=${isoDate}`)
       .then(res => res.json())
       .then(data => {
         if(data.success) setSales(data.data);
         setLoading(false);
-      });
-  }, [range]);
+      })
+      .catch(() => setLoading(false));
+  }, [viewMode, currentDate]);
 
   const totalRevenue = sales.reduce((acc, sale) => acc + Number(sale.totalAmount), 0);
 
   return (
     <main className="min-h-screen bg-neutral-50 text-neutral-900 p-4 md:p-8 relative">
        
-       {/* Background */}
        <div className="fixed inset-0 z-0 pointer-events-none">
           <Image src={bgImg} alt="bg" fill className="object-cover" />
-          <div className="absolute inset-0  bg-neutral-900/80 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-neutral-900/80 backdrop-blur-sm" />
        </div>
 
-       <div className="relative z-10 max-w-5xl mx-auto space-y-8">
+       <div className="relative z-10 max-w-5xl mx-auto space-y-6">
           
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between bg-white/10 backdrop-blur-md gap-4 border border-white/10 p-6 rounded-2xl shadow-xl">
+          <div className="flex flex-col md:flex-row md:items-end justify-between bg-white/10 backdrop-blur-md gap-6 border border-white/10 p-6 rounded-2xl shadow-xl">
              <div>
-                <Link href="/" className="inline-flex items-center gap-2 text-neutral-500 hover:text-red-600 mb-2 transition-colors font-medium text-sm">
-                   <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+                <Link href="/" className="inline-flex items-center gap-2 text-neutral-400 hover:text-white mb-2 transition-colors font-medium text-xs uppercase tracking-wider">
+                   <ArrowLeft className="h-3 w-3" /> Dashboard
                 </Link>
-                <h1 className="text-3xl text-white font-bold uppercase tracking-tight text-neutral-900">
+                <h1 className="text-3xl text-white font-black uppercase tracking-tight">
                    Sales Records
                 </h1>
-                <p className="text-neutral-400">Track your inventory sales and revenue.</p>
+                <p className="text-neutral-400 text-sm">Track your inventory sales and revenue.</p>
              </div>
              
-             {/* Date Filter */}
-             <div className="flex justify-center bg-white p-1 rounded-xl border border-neutral-200 shadow-sm">
-                {['today', 'week', 'month'].map((r) => (
-                   <button
-                     key={r}
-                     onClick={() => setRange(r)}
-                     className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${range === r ? 'bg-neutral-900 text-white shadow' : 'text-neutral-500 hover:bg-neutral-50'}`}
-                   >
-                     {r}
-                   </button>
-                ))}
+             <div className="flex flex-col gap-3 w-full md:w-auto">
+                
+                {/* View Toggles */}
+                <div className="flex bg-black/40 p-1 rounded-lg border border-white/10">
+                    {(['day', 'week', 'month'] as const).map((m) => (
+                        <button
+                            key={m}
+                            onClick={() => { setViewMode(m); setCurrentDate(new Date()); }}
+                            className={`flex-1 px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${viewMode === m ? 'bg-white text-black shadow' : 'text-neutral-400 hover:text-white'}`}
+                        >
+                            {m}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Date Navigation */}
+                <div className="flex items-center gap-2 bg-white rounded-lg p-1 shadow-lg">
+                    <button 
+                        onClick={handlePrev}
+                        disabled={!canGoBack()}
+                        className="p-2 hover:bg-neutral-100 rounded-md text-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                    </button>
+
+                    <div className="relative flex-1 min-w-[200px] h-9 flex items-center justify-center">
+                        {/* Display Text (Visible Overlay) */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm font-bold text-neutral-900 bg-white">
+                            {viewMode === 'week' 
+                                ? getWeekRangeString(currentDate)
+                                : viewMode === 'month' 
+                                    ? currentDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+                                    : currentDate.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+                            }
+                        </div>
+
+                        {/* Actual Input (Hidden Opacity but Clickable) */}
+                        <input 
+                            type={viewMode === 'day' ? 'date' : viewMode === 'week' ? 'week' : 'month'}
+                            value={toInputString(currentDate, viewMode)}
+                            min={toInputString(BUSINESS_START_DATE, viewMode)}
+                            max={toInputString(new Date(), viewMode)}
+                            onChange={(e) => handleDateChange(e.target.value)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                    </div>
+
+                    <button 
+                        onClick={handleNext}
+                        disabled={!canGoForward()}
+                        className="p-2 hover:bg-neutral-100 rounded-md text-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </button>
+                </div>
+
              </div>
           </div>
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm">
-                <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Total Revenue ({range})</p>
+                <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">
+                    Revenue ({viewMode})
+                </p>
                 <p className="text-4xl font-black text-red-600">₹{totalRevenue.toFixed(2)}</p>
              </div>
              <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm flex items-center justify-between">
@@ -78,7 +230,6 @@ export default function SalesHistoryPage() {
              </div>
           </div>
 
-          {/* Table */}
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-xl overflow-hidden">
              <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -92,19 +243,19 @@ export default function SalesHistoryPage() {
                    </thead>
                    <tbody className="divide-y divide-neutral-100">
                       {loading ? (
-                         <tr><td colSpan={4} className="p-8 text-center text-neutral-500">Loading records...</td></tr>
+                         <tr><td colSpan={4} className="p-12 text-center text-neutral-500 italic">Fetching records...</td></tr>
                       ) : sales.length === 0 ? (
-                         <tr><td colSpan={4} className="p-8 text-center text-neutral-400 py-12">No sales found for this period.</td></tr>
+                         <tr><td colSpan={4} className="p-12 text-center text-neutral-400">No sales found for this period.</td></tr>
                       ) : (
                          sales.map((sale) => (
                            <tr key={sale.id} className="hover:bg-neutral-50 transition-colors group">
                               <td className="p-4 whitespace-nowrap">
-                                 <span className="font-bold text-neutral-900">
+                                 <span className="font-bold text-neutral-900 block">
                                     {new Date(sale.saleDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                                  </span>
-                                 <div className="text-[10px] text-neutral-400 font-medium">
-                                   {new Date(sale.saleDate).toLocaleDateString('en-IN')}
-                                 </div>
+                                 <span className="text-[10px] text-neutral-400 font-medium">
+                                   {new Date(sale.saleDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                 </span>
                               </td>
                               <td className="p-4">
                                  <div className="space-y-1">

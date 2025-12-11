@@ -10,9 +10,6 @@ import { InvoiceItemType, Prisma } from '@prisma/client';
 const CUSTOM_PLAN_CODE = 'CUSTOM';
 const PT_PLAN_CODE = 'PT_20_SESSIONS';
 
-/**
- * Common 400 response helper
- */
 function badRequest(message: string, details?: Record<string, string>) {
   return NextResponse.json(
     {
@@ -27,19 +24,12 @@ function badRequest(message: string, details?: Record<string, string>) {
   );
 }
 
-/**
- * STEP 2: LIST INVOICES (for history + UI table)
- *
- * Query params:
- *  - search: string (matches name, phone, invoiceCode)
- *  - range: 'today' | 'week' | 'month' | 'all'  (default: 'month')
- */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
 
     const search = (searchParams.get('search') ?? '').trim();
-    const range = (searchParams.get('range') ?? 'month')
+    const range = (searchParams.get('range') ?? 'week') // Changed default from 'month' -> 'week' here if no param provided
       .toLowerCase()
       .trim();
 
@@ -63,9 +53,9 @@ export async function GET(req: NextRequest) {
     } else if (range === 'all') {
       from = undefined;
     } else {
-      // Fallback: month
+      // Fallback: week
       const start = new Date();
-      start.setDate(start.getDate() - 30);
+      start.setDate(start.getDate() - 7);
       start.setHours(0, 0, 0, 0);
       from = start;
     }
@@ -81,36 +71,17 @@ export async function GET(req: NextRequest) {
 
     if (search) {
       where.OR = [
-        {
-          customerName: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          customerPhone: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          invoiceCode: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
+        { customerName: { contains: search, mode: 'insensitive' } },
+        { customerPhone: { contains: search, mode: 'insensitive' } },
+        { invoiceCode: { contains: search, mode: 'insensitive' } },
       ];
     }
 
     const invoices = await prisma.invoice.findMany({
       where,
-      orderBy: {
-        invoiceDate: 'desc',
-      },
-      include: {
-        items: true,
-      },
-      take: 200, // safety: avoid massive result sets in v1
+      orderBy: { invoiceDate: 'desc' },
+      include: { items: true },
+      take: 200, 
     });
 
     const mapped = invoices.map((inv) => {
@@ -127,6 +98,9 @@ export async function GET(req: NextRequest) {
         customerName: inv.customerName,
         customerPhone: inv.customerPhone,
         grandTotal: Number(inv.grandTotal),
+        totalGst: Number(inv.totalGst), // Added
+        taxableSubtotal: Number(inv.taxableSubtotal), // Added
+        nontaxableSubtotal: Number(inv.nontaxableSubtotal), // Added
         mainItemDescription: primaryItem?.description ?? '',
       };
     });
@@ -152,9 +126,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/**
- * Existing STEP 5: CREATE INVOICE (unchanged logic)
- */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -166,26 +137,11 @@ export async function POST(req: NextRequest) {
     const registrationFeeRaw = body?.registrationFee ?? 0;
     const includePersonalTrainer = Boolean(body?.includePersonalTrainer);
 
-    // Basic validation
-    if (!customerName) {
-      return badRequest('Customer name is required', {
-        customerName: 'Customer name is required',
-      });
-    }
-
-    if (!customerPhone) {
-      return badRequest('Customer phone is required', {
-        customerPhone: 'Customer phone is required',
-      });
-    }
+    if (!customerName) return badRequest('Customer name is required');
+    if (!customerPhone) return badRequest('Customer phone is required');
 
     const planCode = (membership?.planCode ?? '').toString().trim();
-
-    if (!planCode) {
-      return badRequest('Membership plan code is required', {
-        'membership.planCode': 'Plan code is required',
-      });
-    }
+    if (!planCode) return badRequest('Membership plan code is required');
 
     let membershipLabel: string;
     let membershipAmount: number;
@@ -194,54 +150,22 @@ export async function POST(req: NextRequest) {
     let membershipIsTaxable = true;
     let membershipGstRate = 18;
 
-    // 1) Membership: pre-defined OR custom
     if (planCode === CUSTOM_PLAN_CODE) {
-      // Custom membership
-      if (
-        !customMembership ||
-        !customMembership.label ||
-        customMembership.amount == null
-      ) {
-        return badRequest('Custom membership details are required', {
-          'customMembership.label': 'Custom label is required',
-          'customMembership.amount': 'Custom amount is required',
-        });
+      if (!customMembership || !customMembership.label || customMembership.amount == null) {
+        return badRequest('Custom membership details are required');
       }
-
       membershipLabel = customMembership.label.toString().trim();
       membershipAmount = Number(customMembership.amount);
-      membershipDurationDays =
-        customMembership.durationDays != null
-          ? Number(customMembership.durationDays)
-          : null;
+      membershipDurationDays = customMembership.durationDays != null ? Number(customMembership.durationDays) : null;
 
-      if (!membershipLabel) {
-        return badRequest('Custom membership label is required', {
-          'customMembership.label': 'Custom label is required',
-        });
-      }
-      if (!Number.isFinite(membershipAmount) || membershipAmount <= 0) {
-        return badRequest('Custom membership amount must be > 0', {
-          'customMembership.amount': 'Amount must be a positive number',
-        });
-      }
+      if (!membershipLabel) return badRequest('Custom membership label is required');
+      if (!Number.isFinite(membershipAmount) || membershipAmount <= 0) return badRequest('Custom membership amount must be > 0');
 
       membershipIsTaxable = true;
       membershipGstRate = 18;
     } else {
-      // Pre-defined membership plan (from DB)
-      const plan = await prisma.plan.findFirst({
-        where: {
-          code: planCode,
-          isActive: true,
-        },
-      });
-
-      if (!plan) {
-        return badRequest('Invalid membership plan code', {
-          'membership.planCode': 'Plan not found or inactive',
-        });
-      }
+      const plan = await prisma.plan.findFirst({ where: { code: planCode, isActive: true } });
+      if (!plan) return badRequest('Invalid membership plan code');
 
       membershipPlanId = plan.id;
       membershipLabel = plan.name;
@@ -251,102 +175,38 @@ export async function POST(req: NextRequest) {
       membershipGstRate = Number(plan.gstRate);
     }
 
-    // 2) Registration fee (non-taxable)
     const registrationFee = Number(registrationFeeRaw || 0);
-    if (Number.isNaN(registrationFee) || registrationFee < 0) {
-      return badRequest('Registration fee must be a non-negative number', {
-        registrationFee: 'Must be a number >= 0',
-      });
-    }
+    if (Number.isNaN(registrationFee) || registrationFee < 0) return badRequest('Registration fee must be a non-negative number');
 
-    // 3) Personal Trainer plan (non-taxable, from DB)
     let ptPlanAmount: number | null = null;
     let ptPlanId: string | null = null;
     let ptLabel: string | null = null;
 
     if (includePersonalTrainer) {
-      const ptPlan = await prisma.plan.findFirst({
-        where: {
-          code: PT_PLAN_CODE,
-          isActive: true,
-        },
-      });
-
-      if (!ptPlan) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: 'CONFIG_ERROR',
-              message: 'Personal Trainer plan not configured in database',
-            },
-          },
-          { status: 500 },
-        );
-      }
+      const ptPlan = await prisma.plan.findFirst({ where: { code: PT_PLAN_CODE, isActive: true } });
+      if (!ptPlan) return NextResponse.json({ success: false, error: { code: 'CONFIG_ERROR', message: 'Personal Trainer plan not configured' } }, { status: 500 });
 
       ptPlanId = ptPlan.id;
       ptPlanAmount = Number(ptPlan.baseAmount);
       ptLabel = ptPlan.name;
     }
 
-    // 4) Build line items for calculation
     const calcItems: LineItemInput[] = [];
-
-    // Membership (taxable, 18% or from plan)
-    calcItems.push({
-      amount: membershipAmount,
-      isTaxable: membershipIsTaxable,
-      gstRate: membershipGstRate,
-    });
-
-    // Registration fee (non-taxable)
-    if (registrationFee > 0) {
-      calcItems.push({
-        amount: registrationFee,
-        isTaxable: false,
-        gstRate: 0,
-      });
-    }
-
-    // Personal trainer (non-taxable)
-    if (includePersonalTrainer && ptPlanAmount != null) {
-      calcItems.push({
-        amount: ptPlanAmount,
-        isTaxable: false,
-        gstRate: 0,
-      });
-    }
+    calcItems.push({ amount: membershipAmount, isTaxable: membershipIsTaxable, gstRate: membershipGstRate });
+    if (registrationFee > 0) calcItems.push({ amount: registrationFee, isTaxable: false, gstRate: 0 });
+    if (includePersonalTrainer && ptPlanAmount != null) calcItems.push({ amount: ptPlanAmount, isTaxable: false, gstRate: 0 });
 
     const totals = calculateInvoiceTotals(calcItems);
 
-    // 5) Persist invoice + items in a transaction
     const createdInvoice = await prisma.$transaction(async (tx) => {
-      // Get branch (first active for now)
-      const branch = await tx.branch.findFirst({
-        where: { isActive: true },
-      });
+      const branch = await tx.branch.findFirst({ where: { isActive: true } });
+      if (!branch) throw new Error('NO_BRANCH_CONFIGURED');
 
-      if (!branch) {
-        throw new Error('NO_BRANCH_CONFIGURED');
-      }
-
-      // Compute next invoice number
-      const lastInvoice = await tx.invoice.findFirst({
-        orderBy: {
-          invoiceNumber: 'desc',
-        },
-        select: {
-          invoiceNumber: true,
-        },
-      });
-
+      const lastInvoice = await tx.invoice.findFirst({ orderBy: { invoiceNumber: 'desc' }, select: { invoiceNumber: true } });
       const nextInvoiceNumber = (lastInvoice?.invoiceNumber ?? 0) + 1;
       const invoiceCode = nextInvoiceNumber.toString().padStart(3, '0');
 
       const itemsToCreate = [];
-
-      // Membership item
       itemsToCreate.push({
         itemType: InvoiceItemType.MEMBERSHIP,
         description: membershipLabel,
@@ -359,7 +219,6 @@ export async function POST(req: NextRequest) {
         planId: membershipPlanId,
       });
 
-      // Registration fee item
       if (registrationFee > 0) {
         itemsToCreate.push({
           itemType: InvoiceItemType.REGISTRATION_FEE,
@@ -374,7 +233,6 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Personal trainer item
       if (includePersonalTrainer && ptPlanAmount != null && ptLabel) {
         itemsToCreate.push({
           itemType: InvoiceItemType.PERSONAL_TRAINER,
@@ -389,7 +247,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const invoice = await tx.invoice.create({
+      return await tx.invoice.create({
         data: {
           branchId: branch.id,
           invoiceNumber: nextInvoiceNumber,
@@ -403,19 +261,12 @@ export async function POST(req: NextRequest) {
           totalGst: totals.totalGst,
           nontaxableSubtotal: totals.nontaxableSubtotal,
           grandTotal: totals.grandTotal,
-          items: {
-            create: itemsToCreate,
-          },
+          items: { create: itemsToCreate },
         },
-        include: {
-          items: true,
-        },
+        include: { items: true },
       });
-
-      return invoice;
     });
 
-    // 6) Map Prisma Decimal to numbers in response
     const responseInvoice = {
       id: createdInvoice.id,
       invoiceNumber: createdInvoice.invoiceNumber,
@@ -446,40 +297,12 @@ export async function POST(req: NextRequest) {
       })),
     };
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          invoice: responseInvoice,
-        },
-      },
-      { status: 201 },
-    );
+    return NextResponse.json({ success: true, data: { invoice: responseInvoice } }, { status: 201 });
   } catch (err: any) {
     console.error('POST /api/invoices error', err);
-
     if (err?.message === 'NO_BRANCH_CONFIGURED') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'CONFIG_ERROR',
-            message: 'No active branch configured in database',
-          },
-        },
-        { status: 500 },
-      );
+      return NextResponse.json({ success: false, error: { code: 'CONFIG_ERROR', message: 'No active branch configured' } }, { status: 500 });
     }
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: err?.message || 'Something went wrong',
-        },
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: err?.message || 'Something went wrong' } }, { status: 500 });
   }
 }
