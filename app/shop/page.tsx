@@ -37,6 +37,13 @@ export default function ShopPage() {
   const [splitCash, setSplitCash] = useState('');
   const [splitUpi, setSplitUpi] = useState('');
 
+  const [role, setRole] = useState<'ADMIN' | 'STAFF' | null>(null);
+
+  useEffect(() => {
+    refreshProducts();
+    // Fetch Role
+    fetch('/api/auth/me').then(res => res.json()).then(data => setRole(data.role));
+}, []);
   // 1. FETCH PRODUCTS
   const refreshProducts = () => {
     setLoading(true);
@@ -436,9 +443,9 @@ export default function ShopPage() {
       <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
         <header className="p-6 flex items-center justify-between border-b border-neutral-200 bg-white/50 backdrop-blur-sm">
            <div className="flex items-center gap-4">
-             <Link href="/" className="p-2 bg-white hover:bg-neutral-100 rounded-full transition-colors border border-neutral-200 shadow-sm">
+             {role === 'ADMIN' && <Link href="/" className="p-2 bg-white hover:bg-neutral-100 rounded-full transition-colors border border-neutral-200 shadow-sm">
                 <ArrowLeft className="h-5 w-5 text-neutral-600" />
-             </Link>
+             </Link>}
              <div>
                 <h1 className="text-2xl font-black uppercase tracking-wide text-neutral-900 leading-none">Gym Shop</h1>
                 <p className="text-xs text-neutral-800 font-bold uppercase tracking-wider mt-1">
@@ -458,12 +465,12 @@ export default function ShopPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 
                 {/* 1. Add Stock Card (FIRST ITEM) */}
-                <button onClick={() => setIsAddModalOpen(true)} className="hidden md:flex flex-col items-center justify-center h-40 bg-white p-4 rounded-2xl border-2 border-dashed border-neutral-300 hover:bg-white hover:border-red-400 text-neutral-400 hover:text-red-600 transition-all shadow-sm">
+                {role === 'ADMIN' && (<button onClick={() => setIsAddModalOpen(true)} className="hidden md:flex flex-col items-center justify-center h-40 bg-white p-4 rounded-2xl border-2 border-dashed border-neutral-300 hover:bg-white hover:border-red-400 text-neutral-400 hover:text-red-600 transition-all shadow-sm">
                     <div className="h-10 w-10 bg-neutral-100 rounded-full flex items-center justify-center mb-2">
                       <Plus className="h-5 w-5" />
                     </div>
                     <span className="text-xs font-bold uppercase tracking-wide">Add New Product</span>
-                </button>
+                </button>)}
 
                 {/* 2. Product Items */}
                 {products.map(product => {
@@ -484,7 +491,7 @@ export default function ShopPage() {
                             `}
                         >
                             {/* DELETE OVERLAY */}
-                            {isDeleteMode && (
+                            {isDeleteMode && role === 'ADMIN' && (
                                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-red-500/10 backdrop-blur-[1px] rounded-2xl">
                                     <Trash2 className="h-8 w-8 text-red-600" />
                                 </div>
@@ -497,7 +504,7 @@ export default function ShopPage() {
                                 </div>
                                 
                                 {/* Edit/Restock Button (Hide in Delete Mode) */}
-                                {!isDeleteMode && (
+                                {!isDeleteMode && role === 'ADMIN' && (
                                     <button 
                                         onClick={(e) => openEditModal(product, e)}
                                         className="p-1.5 -mt-1 -mr-1 rounded-lg text-neutral-300 hover:bg-neutral-100 hover:text-blue-600 transition-colors"
@@ -551,7 +558,7 @@ export default function ShopPage() {
       )}
 
       {/* --- FLOATING DELETE TOGGLE BUTTON --- */}
-      <div className="fixed bottom-24 right-4 md:bottom-8 md:right-[25rem] z-40">
+      {role === 'ADMIN' && <div className="fixed bottom-24 right-4 md:bottom-8 md:right-[25rem] z-40">
          <button 
             onClick={() => setIsDeleteMode(!isDeleteMode)}
             className={`h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95 ${isDeleteMode ? 'bg-red-600 text-white rotate-180' : 'bg-white text-neutral-400 hover:text-red-600'}`}
@@ -559,6 +566,7 @@ export default function ShopPage() {
             {isDeleteMode ? <X className="h-6 w-6" /> : <Trash2 className="h-6 w-6" />}
          </button>
       </div>
+      }
 
     </div>
   );

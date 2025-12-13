@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation'; // <--- ADDED IMPORT
 import { ArrowLeft, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import bgImg from '../bg.jpg';
@@ -11,6 +12,7 @@ import bgImg from '../bg.jpg';
 const BUSINESS_START_DATE = new Date('2025-11-28T00:00:00');
 
 export default function SalesHistoryPage() {
+  const router = useRouter(); // <--- ADDED ROUTER DEFINITION
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -19,7 +21,6 @@ export default function SalesHistoryPage() {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
 
   // --- HELPERS ---
-
   const getToday = () => {
     const d = new Date();
     d.setHours(0,0,0,0);
@@ -57,7 +58,6 @@ export default function SalesHistoryPage() {
   };
 
   // --- HANDLERS ---
-
   const handlePrev = () => {
     if (!canGoBack()) return;
     const newDate = new Date(currentDate);
@@ -179,7 +179,7 @@ export default function SalesHistoryPage() {
                     </button>
 
                     <div className="relative flex-1 min-w-[200px] h-9 flex items-center justify-center">
-                        {/* Display Text (Visible Overlay) */}
+                        {/* Display Text */}
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm font-bold text-neutral-900 bg-white">
                             {viewMode === 'week' 
                                 ? getWeekRangeString(currentDate)
@@ -189,7 +189,7 @@ export default function SalesHistoryPage() {
                             }
                         </div>
 
-                        {/* Actual Input (Hidden Opacity but Clickable) */}
+                        {/* Actual Input */}
                         <input 
                             type={viewMode === 'day' ? 'date' : viewMode === 'week' ? 'week' : 'month'}
                             value={toInputString(currentDate, viewMode)}
@@ -248,7 +248,7 @@ export default function SalesHistoryPage() {
                          <tr><td colSpan={4} className="p-12 text-center text-neutral-400">No sales found for this period.</td></tr>
                       ) : (
                          sales.map((sale) => (
-                           <tr key={sale.id} className="hover:bg-neutral-50 transition-colors group">
+                           <tr onClick={() => router.push(`/sales/${sale.id}/invoice`)} key={sale.id} className="hover:bg-neutral-50 transition-colors group cursor-pointer">
                               <td className="p-4 whitespace-nowrap">
                                  <span className="font-bold text-neutral-900 block">
                                     {new Date(sale.saleDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}

@@ -22,14 +22,16 @@ model Branch {
   settings  Setting[]
   sessions  Session[]
   invoices  Invoice[]
-  sales     Sale[]    // <--- This was the new line we needed
+  sales     Sale[]
+  expenses  Expense[] // <--- ADDED THIS LINE TO FIX THE ERROR
 }
 
 model Setting {
   id           String   @id @default(uuid())
   branch       Branch   @relation(fields: [branchId], references: [id])
   branchId     String
-  pinHash      String
+  pinHash      String   // Admin PIN
+  staffPinHash String?  // Staff PIN (Nullable)
   pinUpdatedAt DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -39,6 +41,7 @@ model Session {
   id        String   @id @default(uuid())
   branch    Branch   @relation(fields: [branchId], references: [id])
   branchId  String
+  role      String   @default("ADMIN") // "ADMIN" or "STAFF"
   createdAt DateTime @default(now())
   expiresAt DateTime
   ipAddress String?
@@ -115,14 +118,14 @@ enum InvoiceItemType {
   CUSTOM
 }
 
-// --- NEW INVENTORY MODELS ---
+// --- INVENTORY MODELS ---
 
 model Product {
   id        String   @id @default(uuid())
   name      String
   price     Decimal  @db.Decimal(10, 2)
   stock     Int      @default(0)
-  category  String?  // e.g. "Proteins", "Gear"
+  category  String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -163,4 +166,20 @@ enum PaymentMode {
   CASH
   UPI
   SPLIT
+}
+
+// --- EXPENSES MODEL ---
+
+model Expense {
+  id          String   @id @default(uuid())
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  
+  title       String
+  amount      Decimal  @db.Decimal(10, 2)
+  category    String   // e.g. Rent, Salary, Bill
+  date        DateTime @default(now())
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
