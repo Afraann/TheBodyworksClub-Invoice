@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft, X, CheckCircle2, PackagePlus, Pencil, Save, RotateCcw } from 'lucide-react';
 import Image from 'next/image';
 import bgImg from '../bg.jpg';
+import { LogoutButton } from '@/components/LogoutButton';
 
 type Product = { id: string; name: string; price: number; stock: number; category?: string };
 type CartItem = Product & { quantity: number };
@@ -443,9 +444,10 @@ export default function ShopPage() {
       <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
         <header className="p-6 flex items-center justify-between border-b border-neutral-200 bg-white/50 backdrop-blur-sm">
            <div className="flex items-center gap-4">
-             {role === 'ADMIN' && <Link href="/" className="p-2 bg-white hover:bg-neutral-100 rounded-full transition-colors border border-neutral-200 shadow-sm">
+             {role === 'ADMIN'? <Link href="/" className="p-2 bg-white hover:bg-neutral-100 rounded-full transition-colors border border-neutral-200 shadow-sm">
                 <ArrowLeft className="h-5 w-5 text-neutral-600" />
-             </Link>}
+             </Link>: <LogoutButton className="bg-white border border-neutral-200 text-neutral-600 hover:text-red-600 hover:border-red-200 shadow-sm" />
+             } 
              <div>
                 <h1 className="text-2xl font-black uppercase tracking-wide text-neutral-900 leading-none">Gym Shop</h1>
                 <p className="text-xs text-neutral-800 font-bold uppercase tracking-wider mt-1">

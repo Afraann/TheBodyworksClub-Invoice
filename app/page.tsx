@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'; // Import DB to check session
 import { Plus, FolderOpen, ShoppingBag, BarChart3, Wallet } from 'lucide-react';
 import bgImg from './bg.jpg';
 import logoImg from './logo-round.jpg';
+import {LogoutButton} from '@/components/LogoutButton';
 
 export default async function HomePage() {
   // 1. Verify Session & Role
@@ -35,6 +36,9 @@ export default async function HomePage() {
 
       <div className="relative z-10 w-full max-w-xl bg-white/95 backdrop-blur-md shadow-2xl rounded-3xl border border-white/40 p-8">
          {/* ... Header Code ... */}
+         <div className="absolute top-4 left-4">
+            <LogoutButton className="text-neutral-400 hover:text-red-600 hover:bg-red-50" minimal />
+         </div>
          <div className="text-center mb-8">
             {/* Logo Code */}
             <h1 className="text-2xl font-black text-neutral-900 uppercase">The Bodyworks Club</h1>
