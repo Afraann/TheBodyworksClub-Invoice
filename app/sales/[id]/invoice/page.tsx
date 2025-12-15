@@ -20,11 +20,12 @@ export default async function SaleInvoicePage({ params }: { params: Promise<{ id
 
   // Convert Sale to Invoice format for Viewer
   const mappedInvoice = {
+    id: sale.id, // <--- THIS WAS MISSING! Adding it fixes the "undefined" link.
     invoiceCode: 'SALE-' + sale.id.slice(0, 6).toUpperCase(),
     invoiceDate: sale.saleDate,
-    customerName: 'Store Customer', // Sales usually don't have names in this system
+    customerName: 'Store Customer', 
     customerPhone: '-',
-    taxableSubtotal: Number(sale.totalAmount), // Assuming tax is inclusive or ignored for shop for now
+    taxableSubtotal: Number(sale.totalAmount), 
     cgstAmount: 0,
     sgstAmount: 0,
     totalGst: 0,
