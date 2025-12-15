@@ -23,7 +23,23 @@ model Branch {
   sessions  Session[]
   invoices  Invoice[]
   sales     Sale[]
-  expenses  Expense[] // <--- ADDED THIS LINE TO FIX THE ERROR
+  expenses  Expense[]
+  staff     Staff[]   // <--- NEW: List of staff
+}
+
+model Staff {
+  id        String   @id @default(uuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  
+  name      String
+  pinHash   String   // Unique PIN for this staff
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales     Sale[]   // Track sales made by this staff
 }
 
 model Setting {
@@ -31,7 +47,7 @@ model Setting {
   branch       Branch   @relation(fields: [branchId], references: [id])
   branchId     String
   pinHash      String   // Admin PIN
-  staffPinHash String?  // Staff PIN (Nullable)
+  // staffPinHash removed - we use the Staff table now
   pinUpdatedAt DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -41,11 +57,93 @@ model Session {
   id        String   @id @default(uuid())
   branch    Branch   @relation(fields: [branchId], references: [id])
   branchId  String
-  role      String   @default("ADMIN") // "ADMIN" or "STAFF"
+  role      String   @default("ADMIN") 
+  staffId   String?  // <--- NEW: Knows which staff is logged in
   createdAt DateTime @default(now())
   expiresAt DateTime
   ipAddress String?
   userAgent String?
+}
+
+model Sale {
+  id          String   @id @default(uuid())
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  
+  staffId     String?  // <--- NEW: Links sale to staff
+  staff       Staff?   @relation(fields: [staffId], references: [id])
+
+  totalAmount Decimal  @db.Decimal(10, 2)
+  
+  paymentMode PaymentMode
+  cashAmount  Decimal  @default(0) @db.Decimal(10, 2)
+  upiAmount   Decimal  @default(0) @db.Decimal(10, 2)
+  
+  saleDate    DateTime @default(now())
+  
+  items       SaleItem[]
+}
+
+// ... (Keep Product, SaleItem, Invoice, InvoiceItem, Plan, Expense, PaymentMode exactly as they were)
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  price     Decimal  @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  category  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  saleItems SaleItem[]
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+}
+
+model Invoice {
+  id             String   @id @default(uuid())
+  branch         Branch   @relation(fields: [branchId], references: [id])
+  branchId       String
+  invoiceNumber  Int      @unique
+  invoiceCode    String   @unique
+  invoiceDate    DateTime @default(now())
+  customerName   String
+  customerPhone  String
+  taxableSubtotal    Decimal @db.Decimal(10, 2)
+  cgstAmount         Decimal @db.Decimal(10, 2)
+  sgstAmount         Decimal @db.Decimal(10, 2)
+  totalGst           Decimal @db.Decimal(10, 2)
+  nontaxableSubtotal Decimal @db.Decimal(10, 2)
+  grandTotal         Decimal @db.Decimal(10, 2)
+  isVoid    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items InvoiceItem[]
+}
+
+model InvoiceItem {
+  id        String  @id @default(uuid())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId String
+  plan   Plan?   @relation(fields: [planId], references: [id])
+  planId String?
+  itemType           InvoiceItemType
+  description        String
+  durationDays       Int?
+  quantity           Int     @default(1)
+  baseAmount         Decimal @db.Decimal(10, 2)
+  lineTotalBeforeTax Decimal @db.Decimal(10, 2)
+  isTaxable Boolean
+  gstRate   Decimal @db.Decimal(5, 2)
+  createdAt DateTime @default(now())
 }
 
 model Plan {
@@ -59,56 +157,19 @@ model Plan {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
   invoiceItems InvoiceItem[]
 }
 
-model Invoice {
-  id             String   @id @default(uuid())
-  branch         Branch   @relation(fields: [branchId], references: [id])
-  branchId       String
-
-  invoiceNumber  Int      @unique
-  invoiceCode    String   @unique
-
-  invoiceDate    DateTime @default(now())
-  customerName   String
-  customerPhone  String
-
-  taxableSubtotal    Decimal @db.Decimal(10, 2)
-  cgstAmount         Decimal @db.Decimal(10, 2)
-  sgstAmount         Decimal @db.Decimal(10, 2)
-  totalGst           Decimal @db.Decimal(10, 2)
-  nontaxableSubtotal Decimal @db.Decimal(10, 2)
-  grandTotal         Decimal @db.Decimal(10, 2)
-
-  isVoid    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  items InvoiceItem[]
-}
-
-model InvoiceItem {
-  id        String  @id @default(uuid())
-  invoice   Invoice @relation(fields: [invoiceId], references: [id])
-  invoiceId String
-
-  plan   Plan?   @relation(fields: [planId], references: [id])
-  planId String?
-
-  itemType           InvoiceItemType
-  description        String
-  durationDays       Int?
-  quantity           Int     @default(1)
-
-  baseAmount         Decimal @db.Decimal(10, 2)
-  lineTotalBeforeTax Decimal @db.Decimal(10, 2)
-
-  isTaxable Boolean
-  gstRate   Decimal @db.Decimal(5, 2)
-
-  createdAt DateTime @default(now())
+model Expense {
+  id          String   @id @default(uuid())
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  title       String
+  amount      Decimal  @db.Decimal(10, 2)
+  category    String   
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 enum InvoiceItemType {
@@ -118,68 +179,8 @@ enum InvoiceItemType {
   CUSTOM
 }
 
-// --- INVENTORY MODELS ---
-
-model Product {
-  id        String   @id @default(uuid())
-  name      String
-  price     Decimal  @db.Decimal(10, 2)
-  stock     Int      @default(0)
-  category  String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  saleItems SaleItem[]
-}
-
-model Sale {
-  id          String   @id @default(uuid())
-  branchId    String
-  branch      Branch   @relation(fields: [branchId], references: [id])
-  
-  totalAmount Decimal  @db.Decimal(10, 2)
-  
-  paymentMode PaymentMode
-  cashAmount  Decimal  @default(0) @db.Decimal(10, 2)
-  upiAmount   Decimal  @default(0) @db.Decimal(10, 2)
-  
-  saleDate    DateTime @default(now())
-  
-  items       SaleItem[]
-}
-
-model SaleItem {
-  id        String  @id @default(uuid())
-  saleId    String
-  sale      Sale    @relation(fields: [saleId], references: [id])
-  
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  
-  quantity  Int
-  unitPrice Decimal @db.Decimal(10, 2)
-  total     Decimal @db.Decimal(10, 2)
-}
-
 enum PaymentMode {
   CASH
   UPI
   SPLIT
-}
-
-// --- EXPENSES MODEL ---
-
-model Expense {
-  id          String   @id @default(uuid())
-  branchId    String
-  branch      Branch   @relation(fields: [branchId], references: [id])
-  
-  title       String
-  amount      Decimal  @db.Decimal(10, 2)
-  category    String   // e.g. Rent, Salary, Bill
-  date        DateTime @default(now())
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }

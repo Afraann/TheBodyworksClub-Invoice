@@ -10,7 +10,8 @@ function addDays(date: Date, days: number) {
 
 export async function createSession(
   branchId: string,
-  role: string, // <--- ADDED ROLE ARGUMENT
+  role: string,
+  staffId?: string, // <--- Added staffId
   ipAddress?: string,
   userAgent?: string,
 ) {
@@ -22,7 +23,8 @@ export async function createSession(
     data: {
       id: sessionId,
       branchId,
-      role, // <--- SAVING ROLE
+      role,
+      staffId, // <--- Store it
       createdAt: now,
       expiresAt,
       ipAddress,
@@ -37,11 +39,4 @@ export async function deleteSession(sessionId: string) {
   try {
     await prisma.session.delete({ where: { id: sessionId } });
   } catch {}
-}
-
-export async function getSession(sessionId: string) {
-  return await prisma.session.findUnique({
-    where: { id: sessionId },
-    include: { branch: true }
-  });
 }

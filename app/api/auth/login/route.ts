@@ -14,29 +14,39 @@ export async function POST(req: NextRequest) {
     if (!setting) return NextResponse.json({ success: false, error: { message: 'System not configured.' } }, { status: 500 });
 
     let role = null;
+    let staffId = undefined;
 
     // 1. Check Admin PIN
     const isAdmin = await bcrypt.compare(pin, setting.pinHash);
-    if (isAdmin) role = 'ADMIN';
-
-    // 2. Check Staff PIN (if Admin check failed and Staff PIN exists)
-    if (!role && setting.staffPinHash) {
-      const isStaff = await bcrypt.compare(pin, setting.staffPinHash);
-      if (isStaff) role = 'STAFF';
+    if (isAdmin) {
+      role = 'ADMIN';
+    } 
+    else {
+      // 2. Check ALL Active Staff PINs
+      const staffMembers = await prisma.staff.findMany({ where: { isActive: true } });
+      
+      for (const staff of staffMembers) {
+        const isMatch = await bcrypt.compare(pin, staff.pinHash);
+        if (isMatch) {
+          role = 'STAFF';
+          staffId = staff.id;
+          break; // Found the staff
+        }
+      }
     }
 
     if (!role) {
       return NextResponse.json({ success: false, error: { message: 'Invalid PIN' } }, { status: 401 });
     }
 
-    // Create Session with Role
+    // Create Session
     const forwardedFor = req.headers.get('x-forwarded-for');
     const ip = forwardedFor ? forwardedFor.split(',')[0]?.trim() : undefined;
     const ua = req.headers.get('user-agent') ?? undefined;
 
-    const { sessionId, expiresAt } = await createSession(setting.branchId, role, ip, ua);
+    const { sessionId, expiresAt } = await createSession(setting.branchId, role, staffId, ip, ua);
 
-    const res = NextResponse.json({ success: true, data: { role } }); // Send role back to client
+    const res = NextResponse.json({ success: true, data: { role } });
     
     res.cookies.set('sessionId', sessionId, {
       httpOnly: true,

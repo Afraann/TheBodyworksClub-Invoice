@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { headers, cookies } from 'next/headers'; // Import cookies
 import { redirect } from 'next/navigation'; // Import redirect
 import { prisma } from '@/lib/db'; // Import DB to check session
-import { Plus, FolderOpen, ShoppingBag, BarChart3, Wallet } from 'lucide-react';
+import { Plus, FolderOpen, ShoppingBag, BarChart3, Wallet, User } from 'lucide-react';
 import bgImg from './bg.jpg';
 import logoImg from './logo-round.jpg';
 import {LogoutButton} from '@/components/LogoutButton';
@@ -69,10 +69,15 @@ export default async function HomePage() {
                <span className="font-bold text-neutral-900">Sales</span>
             </Link>
              {/* NEW Expenses Link */}
-            <Link href="/expenses" className="group flex flex-col items-center justify-center col-span-2 p-6 rounded-2xl border-2 border-neutral-100 bg-white hover:border-purple-600 transition-all shadow-sm">
+            <Link href="/expenses" className="group flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-neutral-100 bg-white hover:border-purple-600 transition-all shadow-sm">
                <Wallet className="h-8 w-8 text-neutral-400 group-hover:text-purple-600 mb-2" />
                <span className="font-bold text-neutral-900">Expenses</span>
             </Link>
+
+            <Link href="/staff" className="group flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-neutral-100 bg-white hover:border-orange-500 transition-all shadow-sm">
+   <User className="h-8 w-8 text-neutral-400 group-hover:text-orange-500 mb-2" />
+   <span className="font-bold text-neutral-900">Manage Staff</span>
+</Link>
 
          </div>
       </div>
