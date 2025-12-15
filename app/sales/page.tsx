@@ -188,7 +188,7 @@ export default function SalesHistoryPage() {
              <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                    <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 uppercase text-[10px] tracking-wider font-bold">
-                      <tr><th className="p-4">Time</th><th className="p-4">Sold By</th><th className="p-4">Products</th><th className="p-4">Payment</th><th className="p-4 text-right">Amount</th></tr>
+                      <tr><th className="p-4">Time</th><th className="p-4">Products</th><th className="p-4">Payment</th><th className="p-4">Sold By</th><th className="p-4 text-right">Amount</th></tr>
                    </thead>
                    <tbody className="divide-y divide-neutral-100">
                       {loading ? <tr><td colSpan={5} className="p-12 text-center text-neutral-500 italic">Fetching records...</td></tr> : sales.length === 0 ? <tr><td colSpan={5} className="p-12 text-center text-neutral-400">No sales found.</td></tr> : sales.map((sale) => (
@@ -196,14 +196,14 @@ export default function SalesHistoryPage() {
                               <td className="p-4 whitespace-nowrap"><span className="font-bold text-neutral-900 block">{new Date(sale.saleDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span><span className="text-[10px] text-neutral-400 font-medium">{new Date(sale.saleDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span></td>
                               
                               {/* STAFF COLUMN */}
+
+                              <td className="p-4"><div className="space-y-1">{sale.items.map((item: any) => (<div key={item.id} className="text-neutral-700 font-medium text-xs">{item.product?.name || 'Unknown'} <span className="text-neutral-400">x{item.quantity}</span></div>))}</div></td>
+                              <td className="p-4"><span className={`inline-block px-2 py-1 rounded text-[10px] font-bold uppercase ${sale.paymentMode === 'SPLIT' ? 'bg-purple-100 text-purple-700' : 'bg-neutral-100 text-neutral-600'}`}>{sale.paymentMode}</span></td>
                               <td className="p-4">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${sale.staff ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'}`}>
                                     {sale.staff ? sale.staff.name : 'Admin'}
                                 </span>
                               </td>
-
-                              <td className="p-4"><div className="space-y-1">{sale.items.map((item: any) => (<div key={item.id} className="text-neutral-700 font-medium text-xs">{item.product?.name || 'Unknown'} <span className="text-neutral-400">x{item.quantity}</span></div>))}</div></td>
-                              <td className="p-4"><span className={`inline-block px-2 py-1 rounded text-[10px] font-bold uppercase ${sale.paymentMode === 'SPLIT' ? 'bg-purple-100 text-purple-700' : 'bg-neutral-100 text-neutral-600'}`}>{sale.paymentMode}</span></td>
                               <td className="p-4 text-right"><span className="font-black text-neutral-900 text-lg">₹{Number(sale.totalAmount).toFixed(2)}</span></td>
                            </tr>
                       ))}
