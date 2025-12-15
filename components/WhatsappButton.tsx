@@ -54,7 +54,7 @@ export function WhatsAppButton({ phone, invoiceCode, invoiceId }: WhatsAppButton
       className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-[#128C7E] transition-colors shadow-md disabled:opacity-70"
     >
       <MessageCircle className="h-4 w-4" />
-      WhatsApp Link
+      Share
     </button>
   );
 }
