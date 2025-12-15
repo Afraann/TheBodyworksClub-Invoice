@@ -8,7 +8,7 @@ import { WhatsAppButton } from './WhatsappButton';
 
 type InvoiceViewerProps = {
   invoice: any;
-  isPublic?: boolean; // <--- NEW PROP
+  isPublic?: boolean;
 };
 
 export function InvoiceViewer({ invoice, isPublic = false }: InvoiceViewerProps) {
@@ -61,7 +61,6 @@ export function InvoiceViewer({ invoice, isPublic = false }: InvoiceViewerProps)
         </div>
 
         <div className="flex flex-wrap justify-center gap-3 w-full md:w-auto">
-             {/* Mode Toggles */}
              <div className="bg-black/50 p-1 rounded-lg flex items-center border border-white/10">
                 <button onClick={() => setPrintMode('A4')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${printMode === 'A4' ? 'bg-white text-neutral-900 shadow' : 'text-neutral-400 hover:text-white'}`}>
                     <FileText className="h-4 w-4" /> A4
@@ -71,12 +70,11 @@ export function InvoiceViewer({ invoice, isPublic = false }: InvoiceViewerProps)
                 </button>
              </div>
 
-             {/* HIDE WHATSAPP BUTTON FOR PUBLIC VIEW (They are already viewing it) */}
              {!isPublic && (
                 <WhatsAppButton 
                     phone={invoice.customerPhone} 
                     invoiceCode={invoice.invoiceCode}
-                    invoiceId={invoice.id} // <--- PASSING ID
+                    invoiceId={invoice.id}
                 />
              )}
              
@@ -86,26 +84,26 @@ export function InvoiceViewer({ invoice, isPublic = false }: InvoiceViewerProps)
         </div>
       </div>
 
-      {/* 2. PREVIEW AREA */}
-      <div className="w-full flex-1 overflow-auto flex justify-center items-start pb-20 px-4">
+      {/* 2. PREVIEW AREA (FIXED SCROLLING) */}
+      {/* Removed flex centering to prevent left-side clipping on mobile */}
+      <div className="w-full flex-1 overflow-auto pb-20 px-4">
           <div 
             ref={componentRef}
             id="invoice-preview"
-            className={`bg-white text-neutral-900 shadow-2xl print:shadow-none transition-all duration-300 origin-top
+            // Added 'mx-auto' here to handle centering safely
+            className={`bg-white text-neutral-900 shadow-2xl print:shadow-none transition-all duration-300 origin-top mx-auto
                 ${printMode === 'THERMAL' 
                     ? 'w-[80mm] min-h-[100mm] text-[10px] font-mono p-2 pb-10' 
-                    : 'min-w-[210mm]  min-h-[297mm] h-[297mm] relative' // Fixed width for A4
+                    : 'min-w-[210mm] w-[210mm] min-h-[297mm] h-[297mm] relative' 
                 }
             `}
           >
-             {/* ... (Keep your existing Invoice Layout Code unchanged here) ... */}
-             {/* Just copy the content from your previous InvoiceViewer code inside this div */}
              {printMode === 'A4' ? (
                  <>
                     <div className="absolute inset-0 z-0">
                         <img src="/Template.jpg" alt="Invoice Template" className="w-full h-full object-cover" />
                     </div>
-                    {/* ... Rest of A4 layout ... */}
+                    
                     <div className="absolute z-10 top-[24%] left-[22%] font-bold text-neutral-800 uppercase tracking-wide text-sm">{invoice.customerName}</div>
                     <div className="absolute z-10 top-[26.5%] left-[25%] font-bold text-neutral-800 font-mono text-sm">{invoice.customerPhone}</div>
                     <div className="absolute z-10 top-[24%] left-[75%] font-bold text-neutral-800 text-sm">{invoice.invoiceCode}</div>
@@ -132,14 +130,12 @@ export function InvoiceViewer({ invoice, isPublic = false }: InvoiceViewerProps)
                     <div className="absolute z-10 top-[64.7%] right-[8%] w-40 text-right text-xl font-black text-neutral-900">{formatCurrency(Number(invoice.grandTotal))}</div>
                  </>
              ) : (
-                // Copy Thermal Layout from previous answer
                 <div className="p-2 pb-10">
                     <div className="text-center mb-4 pb-4 border-b-2 border-black/10 border-dashed">
                         <h2 className="text-xl font-black uppercase mb-1">{branch?.name}</h2>
                         <p className="text-[10px] text-neutral-500 leading-tight px-4">{branch?.address}</p>
                         <p className="text-[10px] mt-1 font-bold">Ph: {branch?.phone}</p>
                     </div>
-                    {/* ... rest of thermal layout ... */}
                      <div className="flex justify-between mb-4 text-[10px]">
                          <div><p className="text-neutral-500">Inv No.</p><p className="font-bold">{invoice.invoiceCode}</p></div>
                          <div className="text-right"><p className="text-neutral-500">Date</p><p className="font-bold">{new Date(invoice.invoiceDate).toLocaleDateString('en-IN')}</p></div>
